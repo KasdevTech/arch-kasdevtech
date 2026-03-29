@@ -2,18 +2,25 @@ services:
   - type: web
     name: arch-kasdevtech-api
     runtime: python
+    plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
       - key: AI_ARCHITECT_CORS_ORIGINS
         value: https://arch-kasdevtech-frontend.onrender.com
 
-  - type: static_site
+  - type: web
     name: arch-kasdevtech-frontend
+    runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
         value: https://arch-kasdevtech-api.onrender.com/api/v1
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
