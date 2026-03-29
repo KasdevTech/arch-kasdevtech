@@ -24,6 +24,70 @@ from app.services.prompt_templates import INTENT_SYSTEM_PROMPT
 
 
 class IntentParser:
+    DOMAIN_OVERRIDE_RULES = [
+        (
+            SolutionDomain.ai_governance,
+            [
+                "data leakage",
+                "data loss",
+                "compliance violation",
+                "compliance violations",
+                "security posture",
+                "ai component",
+                "ai components",
+                "azure ai",
+                "azure openai",
+                "responsible ai",
+                "resource graph",
+                "purview",
+                "governance",
+                "policy",
+                "discovers",
+                "discovers",
+                "inventory",
+            ],
+        ),
+        (
+            SolutionDomain.cybersecurity,
+            [
+                "vulnerability",
+                "vulnerabilities",
+                "threat detection",
+                "security finding",
+                "security findings",
+                "incident response",
+                "siem",
+                "soc",
+                "exposure",
+            ],
+        ),
+        (
+            SolutionDomain.ai_platform,
+            [
+                "rag",
+                "copilot",
+                "chatbot",
+                "assistant",
+                "model inference",
+                "prompt",
+                "vector search",
+                "embeddings",
+            ],
+        ),
+        (
+            SolutionDomain.data_platform,
+            [
+                "data lake",
+                "warehouse",
+                "etl",
+                "elt",
+                "streaming",
+                "pipeline",
+                "batch processing",
+            ],
+        ),
+    ]
+
     DOMAIN_KEYWORDS = {
         SolutionDomain.ai_governance: [
             "compliance",
@@ -315,6 +379,7 @@ class IntentParser:
     def _parse_heuristically(self, request: ArchitectureRequest) -> ArchitectureIntent:
         lowered = request.prompt.lower()
         preferences = self._normalize_preferences(request.preferences)
+        domain_hint = self._forced_domain(lowered)
         components: list[ParsedComponent] = []
 
         for component_type, keywords in self.COMPONENT_KEYWORDS.items():
@@ -344,22 +409,28 @@ class IntentParser:
             )
 
         component_types = {component.type for component in components}
-        if self._looks_like_web_app(lowered):
+        if self._looks_like_web_app(lowered) and domain_hint in {
+            None,
+            SolutionDomain.web_saas,
+            SolutionDomain.enterprise_application,
+        }:
             if ComponentType.frontend not in component_types:
                 components.insert(0, self._build_component(ComponentType.frontend, lowered))
             if ComponentType.backend_api not in component_types:
                 components.append(self._build_component(ComponentType.backend_api, lowered))
 
-        if ComponentType.backend_api in {component.type for component in components} and ComponentType.database not in {
-            component.type for component in components
-        }:
+        if (
+            ComponentType.backend_api in {component.type for component in components}
+            and ComponentType.database not in {component.type for component in components}
+            and domain_hint not in {SolutionDomain.ai_governance, SolutionDomain.cybersecurity}
+        ):
             components.append(self._build_component(ComponentType.database, lowered))
 
         components = self._add_derived_components(components, lowered, preferences)
 
         priorities = self._extract_priorities(lowered, preferences)
         patterns = self._extract_patterns(lowered, components, preferences)
-        domain = self._classify_domain(lowered, components)
+        domain = domain_hint or self._classify_domain(lowered, components)
         archetype = self._select_archetype(domain, lowered, components)
         title = self._build_title(request.prompt, request.cloud, preferences)
         summary = self._build_summary(request.cloud, components, priorities, preferences, domain, archetype)
@@ -457,10 +528,18 @@ class IntentParser:
             if component is not None
         ]
 
+        forced_domain = self._forced_domain(lowered_prompt)
         if not components:
-            components = self._parse_heuristically(request).components
+            fallback_intent = self._parse_heuristically(request)
+            components = fallback_intent.components
 
         components = self._add_derived_components(components, lowered_prompt, preferences)
+        domain = forced_domain or self._safe_domain(payload.get("domain")) or self._classify_domain(lowered_prompt, components)
+        archetype = self._safe_archetype(payload.get("archetype")) or self._select_archetype(
+            domain,
+            lowered_prompt,
+            components,
+        )
 
         return ArchitectureIntent(
             title=payload.get("title") or self._build_title(request.prompt, request.cloud, preferences),
@@ -470,22 +549,12 @@ class IntentParser:
                 components,
                 [],
                 preferences,
-                domain=self._safe_domain(payload.get("domain")) or self._classify_domain(lowered_prompt, components),
-                archetype=self._safe_archetype(payload.get("archetype"))
-                or self._select_archetype(
-                    self._safe_domain(payload.get("domain")) or self._classify_domain(lowered_prompt, components),
-                    lowered_prompt,
-                    components,
-                ),
+                domain=domain,
+                archetype=archetype,
             ),
             cloud=request.cloud,
-            domain=self._safe_domain(payload.get("domain")) or self._classify_domain(lowered_prompt, components),
-            archetype=self._safe_archetype(payload.get("archetype"))
-            or self._select_archetype(
-                self._safe_domain(payload.get("domain")) or self._classify_domain(lowered_prompt, components),
-                lowered_prompt,
-                components,
-            ),
+            domain=domain,
+            archetype=archetype,
             preferences=preferences,
             priorities=self._normalize_strings(payload.get("priorities"))
             or self._extract_priorities(lowered_prompt, preferences),
@@ -497,7 +566,7 @@ class IntentParser:
                 components,
                 request.cloud,
                 preferences,
-                self._safe_domain(payload.get("domain")) or self._classify_domain(lowered_prompt, components),
+                domain,
             ),
             components=components,
         )
@@ -657,13 +726,15 @@ class IntentParser:
         if ComponentType.backend_api in {component.type for component in components}:
             self._ensure_component(components, ComponentType.secrets, lowered_prompt)
 
-        domain = self._classify_domain(lowered_prompt, components)
+        domain = self._forced_domain(lowered_prompt) or self._classify_domain(lowered_prompt, components)
         if domain in {SolutionDomain.ai_governance, SolutionDomain.cybersecurity}:
             self._ensure_component(components, ComponentType.discovery, lowered_prompt)
             self._ensure_component(components, ComponentType.policy_engine, lowered_prompt)
             self._ensure_component(components, ComponentType.security_analytics, lowered_prompt)
             self._ensure_component(components, ComponentType.object_storage, lowered_prompt)
             self._ensure_component(components, ComponentType.analytics, lowered_prompt)
+            if ComponentType.backend_api not in {component.type for component in components}:
+                self._ensure_component(components, ComponentType.backend_api, lowered_prompt)
 
         if domain == SolutionDomain.ai_platform:
             self._ensure_component(components, ComponentType.ai_model_gateway, lowered_prompt)
@@ -874,6 +945,10 @@ class IntentParser:
         lowered_prompt: str,
         components: list[ParsedComponent],
     ) -> SolutionDomain:
+        forced = self._forced_domain(lowered_prompt)
+        if forced is not None:
+            return forced
+
         scores: dict[SolutionDomain, int] = {
             domain: sum(1 for keyword in keywords if keyword in lowered_prompt)
             for domain, keywords in self.DOMAIN_KEYWORDS.items()
@@ -897,6 +972,12 @@ class IntentParser:
                 return SolutionDomain.web_saas
             return SolutionDomain.enterprise_application
         return best_domain[0]
+
+    def _forced_domain(self, lowered_prompt: str) -> SolutionDomain | None:
+        for domain, keywords in self.DOMAIN_OVERRIDE_RULES:
+            if any(keyword in lowered_prompt for keyword in keywords):
+                return domain
+        return None
 
     def _select_archetype(
         self,
