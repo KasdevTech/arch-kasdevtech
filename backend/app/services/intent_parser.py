@@ -16,12 +16,116 @@ from app.models import (
     DatabaseKind,
     NetworkExposure,
     ParsedComponent,
+    SolutionArchetype,
+    SolutionDomain,
     UserScale,
 )
 from app.services.prompt_templates import INTENT_SYSTEM_PROMPT
 
 
 class IntentParser:
+    DOMAIN_KEYWORDS = {
+        SolutionDomain.ai_governance: [
+            "compliance",
+            "data leakage",
+            "data loss",
+            "guardrails",
+            "governance",
+            "azure ai",
+            "azure openai",
+            "ai component",
+            "ai inventory",
+            "policy",
+            "purview",
+            "defender",
+            "sentinel",
+            "responsible ai",
+        ],
+        SolutionDomain.cybersecurity: [
+            "soc",
+            "siem",
+            "security operations",
+            "threat detection",
+            "vulnerability",
+            "exposure",
+            "security posture",
+            "attack",
+            "threat intel",
+            "incident",
+        ],
+        SolutionDomain.data_platform: [
+            "etl",
+            "elt",
+            "data lake",
+            "warehouse",
+            "pipeline",
+            "streaming",
+            "batch",
+            "analytics pipeline",
+            "data ingestion",
+        ],
+        SolutionDomain.ai_platform: [
+            "rag",
+            "llm",
+            "genai",
+            "chatbot",
+            "assistant",
+            "model inference",
+            "embeddings",
+            "vector",
+            "prompt",
+            "machine learning",
+            "ml",
+        ],
+        SolutionDomain.integration_platform: [
+            "integration",
+            "workflow",
+            "connector",
+            "orchestration",
+            "b2b",
+            "api integration",
+            "edi",
+            "sync between",
+        ],
+        SolutionDomain.developer_platform: [
+            "developer portal",
+            "internal platform",
+            "platform engineering",
+            "service catalog",
+            "golden path",
+            "self-service",
+            "idp",
+        ],
+        SolutionDomain.analytics_platform: [
+            "dashboard",
+            "reporting",
+            "business intelligence",
+            "metrics",
+            "kpi",
+            "analytics",
+        ],
+        SolutionDomain.web_saas: [
+            "saas",
+            "web app",
+            "customer portal",
+            "frontend",
+            "browser",
+            "multi-tenant",
+        ],
+    }
+
+    ARCHETYPE_BY_DOMAIN = {
+        SolutionDomain.web_saas: SolutionArchetype.transactional_saas,
+        SolutionDomain.data_platform: SolutionArchetype.data_processing_platform,
+        SolutionDomain.ai_platform: SolutionArchetype.ai_application_stack,
+        SolutionDomain.ai_governance: SolutionArchetype.ai_security_and_compliance,
+        SolutionDomain.cybersecurity: SolutionArchetype.security_operations_center,
+        SolutionDomain.integration_platform: SolutionArchetype.integration_hub,
+        SolutionDomain.developer_platform: SolutionArchetype.internal_developer_portal,
+        SolutionDomain.analytics_platform: SolutionArchetype.analytics_and_reporting,
+        SolutionDomain.enterprise_application: SolutionArchetype.enterprise_system_of_record,
+    }
+
     COMPONENT_KEYWORDS = {
         ComponentType.frontend: [
             "frontend",
@@ -120,6 +224,66 @@ class IntentParser:
             "vnet",
             "isolated",
         ],
+        ComponentType.analytics: [
+            "analytics",
+            "dashboard",
+            "reporting",
+            "business intelligence",
+            "findings",
+            "evidence",
+        ],
+        ComponentType.policy_engine: [
+            "policy",
+            "governance",
+            "guardrails",
+            "compliance engine",
+            "rule engine",
+        ],
+        ComponentType.security_analytics: [
+            "siem",
+            "soc",
+            "security analytics",
+            "incident",
+            "threat detection",
+        ],
+        ComponentType.discovery: [
+            "discovery",
+            "inventory",
+            "resource graph",
+            "scan resources",
+            "enumerate",
+        ],
+        ComponentType.ai_model_gateway: [
+            "llm",
+            "model endpoint",
+            "azure openai",
+            "bedrock",
+            "vertex ai",
+            "inference",
+            "model gateway",
+        ],
+        ComponentType.search: [
+            "search",
+            "vector",
+            "semantic search",
+            "retrieval",
+            "index",
+        ],
+        ComponentType.ml_platform: [
+            "machine learning",
+            "ml",
+            "training",
+            "feature store",
+            "mlops",
+        ],
+        ComponentType.integration: [
+            "integration",
+            "connector",
+            "workflow",
+            "orchestration",
+            "b2b",
+            "webhook",
+        ],
     }
 
     PRIORITY_KEYWORDS = {
@@ -195,14 +359,18 @@ class IntentParser:
 
         priorities = self._extract_priorities(lowered, preferences)
         patterns = self._extract_patterns(lowered, components, preferences)
+        domain = self._classify_domain(lowered, components)
+        archetype = self._select_archetype(domain, lowered, components)
         title = self._build_title(request.prompt, request.cloud, preferences)
-        summary = self._build_summary(request.cloud, components, priorities, preferences)
-        assumptions = self._build_assumptions(lowered, components, request.cloud, preferences)
+        summary = self._build_summary(request.cloud, components, priorities, preferences, domain, archetype)
+        assumptions = self._build_assumptions(lowered, components, request.cloud, preferences, domain)
 
         return ArchitectureIntent(
             title=title,
             summary=summary,
             cloud=request.cloud,
+            domain=domain,
+            archetype=archetype,
             preferences=preferences,
             priorities=priorities,
             patterns=patterns,
@@ -297,15 +465,40 @@ class IntentParser:
         return ArchitectureIntent(
             title=payload.get("title") or self._build_title(request.prompt, request.cloud, preferences),
             summary=payload.get("summary")
-            or self._build_summary(request.cloud, components, [], preferences),
+            or self._build_summary(
+                request.cloud,
+                components,
+                [],
+                preferences,
+                domain=self._safe_domain(payload.get("domain")) or self._classify_domain(lowered_prompt, components),
+                archetype=self._safe_archetype(payload.get("archetype"))
+                or self._select_archetype(
+                    self._safe_domain(payload.get("domain")) or self._classify_domain(lowered_prompt, components),
+                    lowered_prompt,
+                    components,
+                ),
+            ),
             cloud=request.cloud,
+            domain=self._safe_domain(payload.get("domain")) or self._classify_domain(lowered_prompt, components),
+            archetype=self._safe_archetype(payload.get("archetype"))
+            or self._select_archetype(
+                self._safe_domain(payload.get("domain")) or self._classify_domain(lowered_prompt, components),
+                lowered_prompt,
+                components,
+            ),
             preferences=preferences,
             priorities=self._normalize_strings(payload.get("priorities"))
             or self._extract_priorities(lowered_prompt, preferences),
             patterns=self._normalize_strings(payload.get("patterns"))
             or self._extract_patterns(lowered_prompt, components, preferences),
             assumptions=self._normalize_strings(payload.get("assumptions"))
-            or self._build_assumptions(lowered_prompt, components, request.cloud, preferences),
+            or self._build_assumptions(
+                lowered_prompt,
+                components,
+                request.cloud,
+                preferences,
+                self._safe_domain(payload.get("domain")) or self._classify_domain(lowered_prompt, components),
+            ),
             components=components,
         )
 
@@ -384,6 +577,14 @@ class IntentParser:
             ComponentType.waf: "Web application firewall",
             ComponentType.secrets: "Secrets management",
             ComponentType.private_network: "Private network boundary",
+            ComponentType.analytics: "Analytics workspace",
+            ComponentType.policy_engine: "Policy engine",
+            ComponentType.security_analytics: "Security analytics",
+            ComponentType.discovery: "Discovery engine",
+            ComponentType.ai_model_gateway: "Model gateway",
+            ComponentType.search: "Search index",
+            ComponentType.ml_platform: "ML platform",
+            ComponentType.integration: "Integration fabric",
         }
 
         requirements_map = {
@@ -397,6 +598,14 @@ class IntentParser:
             ComponentType.waf: ["edge threat filtering", "bot protection"],
             ComponentType.secrets: ["secret storage", "credential rotation"],
             ComponentType.private_network: ["east-west isolation", "private service access"],
+            ComponentType.analytics: ["dashboards", "evidence insights"],
+            ComponentType.policy_engine: ["rules evaluation", "compliance checks"],
+            ComponentType.security_analytics: ["detections", "incident context"],
+            ComponentType.discovery: ["asset discovery", "resource inventory"],
+            ComponentType.ai_model_gateway: ["model invocation", "safety controls"],
+            ComponentType.search: ["indexing", "retrieval"],
+            ComponentType.ml_platform: ["training", "model lifecycle"],
+            ComponentType.integration: ["connector orchestration", "event flows"],
         }
 
         return ParsedComponent(
@@ -435,6 +644,9 @@ class IntentParser:
         if ComponentType.monitoring not in existing:
             self._ensure_component(components, ComponentType.monitoring, lowered_prompt)
 
+        if any(keyword in lowered_prompt for keyword in ["analytics", "reporting", "insight", "findings"]):
+            self._ensure_component(components, ComponentType.analytics, lowered_prompt)
+
         if ComponentType.frontend in existing and (
             preferences.multi_region
             or preferences.user_scale == UserScale.internet_scale
@@ -444,6 +656,29 @@ class IntentParser:
 
         if ComponentType.backend_api in {component.type for component in components}:
             self._ensure_component(components, ComponentType.secrets, lowered_prompt)
+
+        domain = self._classify_domain(lowered_prompt, components)
+        if domain in {SolutionDomain.ai_governance, SolutionDomain.cybersecurity}:
+            self._ensure_component(components, ComponentType.discovery, lowered_prompt)
+            self._ensure_component(components, ComponentType.policy_engine, lowered_prompt)
+            self._ensure_component(components, ComponentType.security_analytics, lowered_prompt)
+            self._ensure_component(components, ComponentType.object_storage, lowered_prompt)
+            self._ensure_component(components, ComponentType.analytics, lowered_prompt)
+
+        if domain == SolutionDomain.ai_platform:
+            self._ensure_component(components, ComponentType.ai_model_gateway, lowered_prompt)
+            self._ensure_component(components, ComponentType.search, lowered_prompt)
+            if any(keyword in lowered_prompt for keyword in ["training", "fine tune", "machine learning", "ml"]):
+                self._ensure_component(components, ComponentType.ml_platform, lowered_prompt)
+
+        if domain == SolutionDomain.integration_platform:
+            self._ensure_component(components, ComponentType.integration, lowered_prompt)
+            self._ensure_component(components, ComponentType.queue, lowered_prompt)
+
+        if domain in {SolutionDomain.data_platform, SolutionDomain.analytics_platform}:
+            self._ensure_component(components, ComponentType.integration, lowered_prompt)
+            self._ensure_component(components, ComponentType.object_storage, lowered_prompt)
+            self._ensure_component(components, ComponentType.analytics, lowered_prompt)
 
         if (
             preferences.network_exposure != NetworkExposure.public
@@ -475,6 +710,14 @@ class IntentParser:
             ComponentType.queue,
             ComponentType.database,
             ComponentType.object_storage,
+            ComponentType.discovery,
+            ComponentType.policy_engine,
+            ComponentType.ai_model_gateway,
+            ComponentType.search,
+            ComponentType.integration,
+            ComponentType.ml_platform,
+            ComponentType.analytics,
+            ComponentType.security_analytics,
             ComponentType.secrets,
             ComponentType.private_network,
             ComponentType.monitoring,
@@ -573,12 +816,15 @@ class IntentParser:
         components: list[ParsedComponent],
         priorities: list[str],
         preferences: ArchitecturePreferences,
+        domain: SolutionDomain,
+        archetype: SolutionArchetype,
     ) -> str:
         component_names = ", ".join(component.type.value.replace("_", " ") for component in components[:5])
         priorities_text = ", ".join(priorities[:3]) if priorities else "security and resilience"
         footprint = "multi-region" if preferences.multi_region else "single-region"
         return (
-            f"An enterprise-oriented {cloud.value.upper()} design for a {footprint} "
+            f"An enterprise-oriented {cloud.value.upper()} {domain.value.replace('_', ' ')} design "
+            f"using the {archetype.value.replace('_', ' ')} pattern for a {footprint} "
             f"{preferences.tenancy.value.replace('_', ' ')} workload using {component_names}, "
             f"optimized for {priorities_text}."
         )
@@ -589,6 +835,7 @@ class IntentParser:
         components: list[ParsedComponent],
         cloud: CloudProvider,
         preferences: ArchitecturePreferences,
+        domain: SolutionDomain,
     ) -> list[str]:
         assumptions = [
             f"Assuming {cloud.value.upper()} managed services are preferred over self-hosted infrastructure.",
@@ -613,8 +860,71 @@ class IntentParser:
             assumptions.append("Assuming workforce or customer identity should stay outside of custom application code.")
         if "mobile" not in lowered_prompt and ComponentType.frontend in component_types:
             assumptions.append("Assuming the primary user experience is a browser-based application.")
+        if domain == SolutionDomain.ai_governance:
+            assumptions.append("Assuming the product must continuously discover AI resources, evaluate controls, and surface compliance or leakage findings.")
+        if domain == SolutionDomain.cybersecurity:
+            assumptions.append("Assuming the system must aggregate telemetry and convert signals into detections, findings, or remediation guidance.")
+        if domain == SolutionDomain.ai_platform:
+            assumptions.append("Assuming model access, retrieval, and application safety controls are first-class parts of the architecture.")
 
         return assumptions
+
+    def _classify_domain(
+        self,
+        lowered_prompt: str,
+        components: list[ParsedComponent],
+    ) -> SolutionDomain:
+        scores: dict[SolutionDomain, int] = {
+            domain: sum(1 for keyword in keywords if keyword in lowered_prompt)
+            for domain, keywords in self.DOMAIN_KEYWORDS.items()
+        }
+
+        component_types = {component.type for component in components}
+        if ComponentType.ai_model_gateway in component_types or ComponentType.search in component_types:
+            scores[SolutionDomain.ai_platform] = scores.get(SolutionDomain.ai_platform, 0) + 2
+        if ComponentType.policy_engine in component_types or ComponentType.discovery in component_types:
+            scores[SolutionDomain.ai_governance] = scores.get(SolutionDomain.ai_governance, 0) + 3
+        if ComponentType.security_analytics in component_types:
+            scores[SolutionDomain.cybersecurity] = scores.get(SolutionDomain.cybersecurity, 0) + 2
+        if ComponentType.integration in component_types:
+            scores[SolutionDomain.integration_platform] = scores.get(SolutionDomain.integration_platform, 0) + 2
+        if ComponentType.analytics in component_types and "dashboard" in lowered_prompt:
+            scores[SolutionDomain.analytics_platform] = scores.get(SolutionDomain.analytics_platform, 0) + 1
+
+        best_domain = max(scores.items(), key=lambda item: item[1], default=(SolutionDomain.enterprise_application, 0))
+        if best_domain[1] <= 0:
+            if self._looks_like_web_app(lowered_prompt):
+                return SolutionDomain.web_saas
+            return SolutionDomain.enterprise_application
+        return best_domain[0]
+
+    def _select_archetype(
+        self,
+        domain: SolutionDomain,
+        lowered_prompt: str,
+        components: list[ParsedComponent],
+    ) -> SolutionArchetype:
+        if domain == SolutionDomain.web_saas and any(
+            keyword in lowered_prompt for keyword in ["event", "async", "queue", "workflow"]
+        ):
+            return SolutionArchetype.event_driven_platform
+        if domain == SolutionDomain.enterprise_application:
+            if any(keyword in lowered_prompt for keyword in ["event", "queue", "async", "workflow"]):
+                return SolutionArchetype.event_driven_platform
+            return SolutionArchetype.enterprise_system_of_record
+        return self.ARCHETYPE_BY_DOMAIN.get(domain, SolutionArchetype.enterprise_system_of_record)
+
+    def _safe_domain(self, value: object) -> SolutionDomain | None:
+        try:
+            return SolutionDomain(str(value))
+        except Exception:
+            return None
+
+    def _safe_archetype(self, value: object) -> SolutionArchetype | None:
+        try:
+            return SolutionArchetype(str(value))
+        except Exception:
+            return None
 
     def _format_framework(self, framework: ComplianceFramework) -> str:
         mapping = {

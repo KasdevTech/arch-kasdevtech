@@ -7,6 +7,7 @@ A full-stack MVP that turns a plain-English product idea into a cloud architectu
 - Natural-language architecture intake
 - Enterprise workload profile intake for availability, compliance, tenancy, network exposure, and environment strategy
 - Deterministic intent parsing with optional OpenAI-backed or OpenAI-compatible LLM parsing
+- Domain-aware classification into solution types such as web SaaS, AI platforms, AI governance, data platforms, and cybersecurity products
 - Multi-cloud mapping for Azure, AWS, and GCP
 - Native SVG architecture canvas with cloud imagery
 - Architecture explanation and next-step guidance
@@ -19,7 +20,7 @@ A full-stack MVP that turns a plain-English product idea into a cloud architectu
 
 - Frontend: React, TypeScript, Vite
 - Backend: FastAPI, Pydantic
-- Architecture engine: heuristic parser, cloud service mapper, native SVG canvas plus Mermaid export
+- Architecture engine: domain classifier, intent parser, archetype-aware cloud mapper, native SVG canvas plus Mermaid export
 
 ## Project Layout
 

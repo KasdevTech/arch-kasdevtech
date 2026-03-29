@@ -52,8 +52,13 @@ const CATEGORY_TO_COLUMN: Record<string, keyof typeof COLUMN_X> = {
   compute: "app",
   cache: "app",
   messaging: "app",
+  ai: "app",
+  integration: "app",
   data: "data",
   storage: "data",
+  analytics: "data",
+  governance: "control",
+  control: "control",
   network: "control",
   operations: "control",
 };
@@ -91,6 +96,22 @@ const AZURE_OFFICIAL_IMAGE_URLS: Record<string, string> = {
     "/assets/azure-icons/Azure_Public_Service_Icons/Icons/networking/10061-icon-service-Virtual-Networks.svg",
   monitoring:
     "/assets/azure-icons/Azure_Public_Service_Icons/Icons/management%20%2B%20governance/00001-icon-service-Monitor.svg",
+  analytics:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/analytics/10126-icon-service-Power-BI-Embedded.svg",
+  policy_engine:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/management%20%2B%20governance/00012-icon-service-Policy.svg",
+  security_analytics:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/security/02148-icon-service-Defender-CSPM.svg",
+  discovery:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/management%20%2B%20governance/00003-icon-service-Resource-Graph-Explorer.svg",
+  ai_model_gateway:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/ai%20%2B%20machine%20learning/10787-icon-service-Azure-OpenAI.svg",
+  search:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/ai%20%2B%20machine%20learning/10044-icon-service-Cognitive-Search.svg",
+  ml_platform:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/ai%20%2B%20machine%20learning/00039-icon-service-Machine-Learning-Studio-Classic-Web-Services.svg",
+  integration:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/integration/10201-icon-service-Logic-Apps.svg",
 } as const;
 
 const SERVICE_IMAGE_URLS: Record<string, string> = {
@@ -107,6 +128,14 @@ const SERVICE_IMAGE_URLS: Record<string, string> = {
   backend_api: "https://cdn.simpleicons.org/docker/2496ED",
   frontend: "https://cdn.simpleicons.org/react/61DAFB",
   cdn: "https://cdn.simpleicons.org/cloudflare/FF7A00",
+  analytics: "https://cdn.simpleicons.org/looker/4285F4",
+  policy_engine: "https://cdn.simpleicons.org/openpolicyagent/7d9199",
+  security_analytics: "https://cdn.simpleicons.org/sentry/362D59",
+  discovery: "https://cdn.simpleicons.org/databricks/FF3621",
+  ai_model_gateway: "https://cdn.simpleicons.org/openai/FFFFFF",
+  search: "https://cdn.simpleicons.org/elasticsearch/005571",
+  ml_platform: "https://cdn.simpleicons.org/mlflow/0194E2",
+  integration: "https://cdn.simpleicons.org/n8n/EA4B71",
 };
 
 function serviceImage(cloud: ArchitectureResponse["cloud"], serviceId: string) {
@@ -133,6 +162,11 @@ function categoryFill(category: string) {
     messaging: "#241a31",
     data: "#182c21",
     storage: "#162d2d",
+    analytics: "#122b35",
+    governance: "#352810",
+    control: "#1c2230",
+    ai: "#23183b",
+    integration: "#271b39",
     network: "#191d39",
     operations: "#1f2431",
     actor: "#102638",

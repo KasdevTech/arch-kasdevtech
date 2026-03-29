@@ -9,10 +9,11 @@ from app.models import (
     DatabaseKind,
     ParsedComponent,
     ServiceMapping,
+    SolutionArchetype,
 )
 
 
-SERVICE_CATALOG = {
+BASE_SERVICE_CATALOG = {
     "azure": {
         "waf": {
             "service": "Azure Web Application Firewall",
@@ -84,149 +85,129 @@ SERVICE_CATALOG = {
             "category": "operations",
             "rationale": "Centralizes logs, metrics, tracing, alerting, and operational insights across the platform.",
         },
+        "analytics": {
+            "service": "Power BI Embedded",
+            "category": "analytics",
+            "rationale": "Delivers dashboards, findings views, and embedded analytical reporting to users or operators.",
+        },
+        "policy_engine": {
+            "service": "Azure Policy",
+            "category": "governance",
+            "rationale": "Evaluates resources against guardrails and compliance requirements with policy-driven enforcement.",
+        },
+        "security_analytics": {
+            "service": "Microsoft Sentinel",
+            "category": "security",
+            "rationale": "Correlates security signals, detections, incidents, and investigation workflows across the estate.",
+        },
+        "discovery": {
+            "service": "Azure Resource Graph",
+            "category": "control",
+            "rationale": "Discovers resources across subscriptions and supports large-scale inventory and posture queries.",
+        },
+        "ai_model_gateway": {
+            "service": "Azure OpenAI",
+            "category": "ai",
+            "rationale": "Provides managed model inference endpoints for copilots, agents, and AI-powered applications.",
+        },
+        "search": {
+            "service": "Azure AI Search",
+            "category": "ai",
+            "rationale": "Supports retrieval, indexing, and vector search patterns for knowledge-grounded applications.",
+        },
+        "ml_platform": {
+            "service": "Azure Machine Learning",
+            "category": "ai",
+            "rationale": "Supports model training, evaluation, lifecycle management, and ML platform workflows.",
+        },
+        "integration": {
+            "service": "Azure Logic Apps",
+            "category": "integration",
+            "rationale": "Orchestrates connectors, workflows, and third-party system integrations with managed automation.",
+        },
     },
     "aws": {
-        "waf": {
-            "service": "AWS WAF",
-            "category": "security",
-            "rationale": "Protects public endpoints with managed rule sets, bot filtering, and request inspection policies.",
-        },
-        "cdn": {
-            "service": "Amazon CloudFront",
-            "category": "edge",
-            "rationale": "Caches content at the edge and provides a globally distributed ingress layer for web traffic.",
-        },
-        "frontend": {
-            "service": "Amazon S3 Static Website",
-            "category": "presentation",
-            "rationale": "Serves frontend assets durably and pairs well with CloudFront for enterprise-scale web delivery.",
-        },
-        "authentication": {
-            "service": "Amazon Cognito",
-            "category": "identity",
-            "rationale": "Provides hosted sign-in, token issuance, federation, and user management for workforce or customer identity.",
-        },
-        "api_gateway": {
-            "service": "Amazon API Gateway",
-            "category": "api",
-            "rationale": "Offers a managed public API entry point with throttling, authorization, and policy controls.",
-        },
-        "backend_api": {
-            "service": "AWS Fargate",
-            "category": "compute",
-            "rationale": "Runs containerized APIs without server management and scales through a managed compute platform.",
-        },
-        "database:relational": {
-            "service": "Amazon RDS for PostgreSQL",
-            "category": "data",
-            "rationale": "Supports relational application data with managed backups, patching, and high availability features.",
-        },
-        "database:document": {
-            "service": "Amazon DynamoDB",
-            "category": "data",
-            "rationale": "Delivers a fully managed document-style data store with high-scale performance and low operations overhead.",
-        },
-        "cache": {
-            "service": "Amazon ElastiCache for Redis",
-            "category": "cache",
-            "rationale": "Improves hot-path latency for frequent reads, sessions, and shared ephemeral state.",
-        },
-        "queue": {
-            "service": "Amazon SQS",
-            "category": "messaging",
-            "rationale": "Buffers asynchronous workloads with durable, decoupled message processing.",
-        },
-        "object_storage": {
-            "service": "Amazon S3",
-            "category": "storage",
-            "rationale": "Stores generated assets, uploads, backups, and exports with highly durable object storage.",
-        },
-        "secrets": {
-            "service": "AWS Secrets Manager",
-            "category": "security",
-            "rationale": "Keeps credentials and connection secrets out of application code while supporting rotation workflows.",
-        },
-        "private_network": {
-            "service": "Amazon VPC",
-            "category": "network",
-            "rationale": "Creates the network boundary for private workloads, service segmentation, and controlled east-west traffic.",
-        },
-        "monitoring": {
-            "service": "Amazon CloudWatch",
-            "category": "operations",
-            "rationale": "Collects metrics, logs, alarms, and dashboards across the architecture.",
-        },
+        "waf": {"service": "AWS WAF", "category": "security", "rationale": "Protects public endpoints with managed rule sets, bot filtering, and request inspection policies."},
+        "cdn": {"service": "Amazon CloudFront", "category": "edge", "rationale": "Caches content at the edge and provides a globally distributed ingress layer for web traffic."},
+        "frontend": {"service": "Amazon S3 Static Website", "category": "presentation", "rationale": "Serves frontend assets durably and pairs well with CloudFront for enterprise-scale web delivery."},
+        "authentication": {"service": "Amazon Cognito", "category": "identity", "rationale": "Provides hosted sign-in, token issuance, federation, and user management for workforce or customer identity."},
+        "api_gateway": {"service": "Amazon API Gateway", "category": "api", "rationale": "Offers a managed public API entry point with throttling, authorization, and policy controls."},
+        "backend_api": {"service": "AWS Fargate", "category": "compute", "rationale": "Runs containerized APIs without server management and scales through a managed compute platform."},
+        "database:relational": {"service": "Amazon RDS for PostgreSQL", "category": "data", "rationale": "Supports relational application data with managed backups, patching, and high availability features."},
+        "database:document": {"service": "Amazon DynamoDB", "category": "data", "rationale": "Delivers a fully managed document-style data store with high-scale performance and low operations overhead."},
+        "cache": {"service": "Amazon ElastiCache for Redis", "category": "cache", "rationale": "Improves hot-path latency for frequent reads, sessions, and shared ephemeral state."},
+        "queue": {"service": "Amazon SQS", "category": "messaging", "rationale": "Buffers asynchronous workloads with durable, decoupled message processing."},
+        "object_storage": {"service": "Amazon S3", "category": "storage", "rationale": "Stores generated assets, uploads, backups, and exports with highly durable object storage."},
+        "secrets": {"service": "AWS Secrets Manager", "category": "security", "rationale": "Keeps credentials and connection secrets out of application code while supporting rotation workflows."},
+        "private_network": {"service": "Amazon VPC", "category": "network", "rationale": "Creates the network boundary for private workloads, service segmentation, and controlled east-west traffic."},
+        "monitoring": {"service": "Amazon CloudWatch", "category": "operations", "rationale": "Collects metrics, logs, alarms, and dashboards across the architecture."},
+        "analytics": {"service": "Amazon QuickSight", "category": "analytics", "rationale": "Provides embedded dashboards and findings analysis across business or security workloads."},
+        "policy_engine": {"service": "AWS Config", "category": "governance", "rationale": "Evaluates configuration state and compliance against declarative rules across the account estate."},
+        "security_analytics": {"service": "Amazon Security Hub", "category": "security", "rationale": "Aggregates security findings, posture signals, and control status across AWS services."},
+        "discovery": {"service": "AWS Config Aggregator", "category": "control", "rationale": "Builds a cross-account, cross-region inventory of resource configuration and changes."},
+        "ai_model_gateway": {"service": "Amazon Bedrock", "category": "ai", "rationale": "Provides managed access to foundation models and inference orchestration."},
+        "search": {"service": "Amazon OpenSearch Service", "category": "ai", "rationale": "Supports search, vector retrieval, and analytical indexing patterns."},
+        "ml_platform": {"service": "Amazon SageMaker", "category": "ai", "rationale": "Supports ML development, training, inference, and model lifecycle operations."},
+        "integration": {"service": "AWS Step Functions", "category": "integration", "rationale": "Coordinates workflows, connectors, and managed orchestration across services."},
     },
     "gcp": {
-        "waf": {
-            "service": "Cloud Armor",
-            "category": "security",
-            "rationale": "Applies WAF and DDoS mitigation policies at the edge for public application traffic.",
+        "waf": {"service": "Cloud Armor", "category": "security", "rationale": "Applies WAF and DDoS mitigation policies at the edge for public application traffic."},
+        "cdn": {"service": "Cloud CDN", "category": "edge", "rationale": "Improves latency by caching web traffic at the edge and reducing origin load."},
+        "frontend": {"service": "Firebase Hosting", "category": "presentation", "rationale": "Deploys frontend assets quickly with managed global delivery and web-oriented hosting features."},
+        "authentication": {"service": "Identity Platform", "category": "identity", "rationale": "Handles user sign-in, OAuth providers, and enterprise identity requirements through a managed service."},
+        "api_gateway": {"service": "API Gateway", "category": "api", "rationale": "Adds a governed API facade with authentication, quotas, and routing control."},
+        "backend_api": {"service": "Cloud Run", "category": "compute", "rationale": "Runs stateless APIs on demand with autoscaling and managed container deployment."},
+        "database:relational": {"service": "Cloud SQL for PostgreSQL", "category": "data", "rationale": "Provides a managed relational database for transactional application state with enterprise operations support."},
+        "database:document": {"service": "Firestore", "category": "data", "rationale": "Fits document-oriented data models with a fully managed serverless storage layer."},
+        "cache": {"service": "Memorystore for Redis", "category": "cache", "rationale": "Speeds up repeated reads and hot application lookups through managed Redis."},
+        "queue": {"service": "Pub/Sub", "category": "messaging", "rationale": "Supports asynchronous event delivery across loosely coupled services."},
+        "object_storage": {"service": "Cloud Storage", "category": "storage", "rationale": "Stores exported artifacts, uploads, and generated files in durable object storage."},
+        "secrets": {"service": "Secret Manager", "category": "security", "rationale": "Stores secrets centrally and helps enforce separation between runtime code and credentials."},
+        "private_network": {"service": "VPC Network", "category": "network", "rationale": "Creates the network perimeter and private service access path for backend and data services."},
+        "monitoring": {"service": "Cloud Monitoring", "category": "operations", "rationale": "Captures metrics, logs, uptime signals, and alerting across the platform."},
+        "analytics": {"service": "Looker", "category": "analytics", "rationale": "Delivers dashboards, semantic reporting, and analytical data experiences."},
+        "policy_engine": {"service": "Organization Policy Service", "category": "governance", "rationale": "Applies centralized guardrails and policy constraints across the GCP estate."},
+        "security_analytics": {"service": "Security Command Center", "category": "security", "rationale": "Aggregates findings, posture signals, and threat visibility across cloud resources."},
+        "discovery": {"service": "Cloud Asset Inventory", "category": "control", "rationale": "Builds searchable inventory and history for cloud resources across projects and folders."},
+        "ai_model_gateway": {"service": "Vertex AI", "category": "ai", "rationale": "Provides managed generative AI, model inference, and ML platform capabilities."},
+        "search": {"service": "Vertex AI Search", "category": "ai", "rationale": "Provides enterprise search and retrieval workflows for grounded AI applications."},
+        "ml_platform": {"service": "Vertex AI Workbench", "category": "ai", "rationale": "Supports ML development, experimentation, and managed training workflows."},
+        "integration": {"service": "Application Integration", "category": "integration", "rationale": "Connects SaaS systems and orchestrates workflow-driven integrations."},
+    },
+}
+
+
+ARCHETYPE_OVERRIDES = {
+    SolutionArchetype.ai_security_and_compliance: {
+        "azure": {
+            "frontend": {"service": "Azure Static Web Apps", "category": "presentation", "rationale": "Provides the analyst and compliance workspace for posture findings and reports."},
+            "backend_api": {"service": "Azure Container Apps", "category": "compute", "rationale": "Runs multi-tenant scan orchestration, evaluation services, and policy APIs with elastic scale."},
+            "monitoring": {"service": "Log Analytics Workspace", "category": "operations", "rationale": "Centralizes scan telemetry, evidence trails, and cross-service diagnostics for the platform."},
+            "analytics": {"service": "Power BI Embedded", "category": "analytics", "rationale": "Presents executive dashboards, evidence trends, and compliance reporting for customer tenants."},
+            "policy_engine": {"service": "Azure Policy", "category": "governance", "rationale": "Evaluates cloud resources against required controls and flags non-compliant AI configurations."},
+            "security_analytics": {"service": "Microsoft Defender for Cloud", "category": "security", "rationale": "Surfaces security posture, exposure, and recommendations that enrich the product's findings."},
+            "discovery": {"service": "Azure Resource Graph", "category": "control", "rationale": "Enumerates AI and supporting resources across subscriptions for inventory and posture analysis."},
+            "database:document": {"service": "Azure Cosmos DB", "category": "data", "rationale": "Stores findings, evidence metadata, and scan state with flexible document-style data models."},
+            "object_storage": {"service": "Azure Blob Storage", "category": "storage", "rationale": "Stores exported reports, evidence artifacts, and longer-lived scan outputs."},
+            "integration": {"service": "Azure Event Grid", "category": "integration", "rationale": "Distributes scan events, remediation triggers, and customer notification workflows."},
+            "ai_model_gateway": {"service": "Azure OpenAI", "category": "ai", "rationale": "Supports AI-specific policy reasoning, evidence summarization, and remediation guidance workflows."},
         },
-        "cdn": {
-            "service": "Cloud CDN",
-            "category": "edge",
-            "rationale": "Improves latency by caching web traffic at the edge and reducing origin load.",
+    },
+    SolutionArchetype.ai_application_stack: {
+        "azure": {
+            "backend_api": {"service": "Azure Container Apps", "category": "compute", "rationale": "Runs API and orchestration services for AI applications with elastic scaling."},
+            "search": {"service": "Azure AI Search", "category": "ai", "rationale": "Provides retrieval, indexing, and vector search for RAG-style solutions."},
+            "ai_model_gateway": {"service": "Azure OpenAI", "category": "ai", "rationale": "Provides managed access to LLM inference for copilots and AI features."},
+            "database:document": {"service": "Azure Cosmos DB", "category": "data", "rationale": "Stores conversation context, documents, or flexible application state for AI scenarios."},
         },
-        "frontend": {
-            "service": "Firebase Hosting",
-            "category": "presentation",
-            "rationale": "Deploys frontend assets quickly with managed global delivery and web-oriented hosting features.",
-        },
-        "authentication": {
-            "service": "Identity Platform",
-            "category": "identity",
-            "rationale": "Handles user sign-in, OAuth providers, and enterprise identity requirements through a managed service.",
-        },
-        "api_gateway": {
-            "service": "API Gateway",
-            "category": "api",
-            "rationale": "Adds a governed API facade with authentication, quotas, and routing control.",
-        },
-        "backend_api": {
-            "service": "Cloud Run",
-            "category": "compute",
-            "rationale": "Runs stateless APIs on demand with autoscaling and managed container deployment.",
-        },
-        "database:relational": {
-            "service": "Cloud SQL for PostgreSQL",
-            "category": "data",
-            "rationale": "Provides a managed relational database for transactional application state with enterprise operations support.",
-        },
-        "database:document": {
-            "service": "Firestore",
-            "category": "data",
-            "rationale": "Fits document-oriented data models with a fully managed serverless storage layer.",
-        },
-        "cache": {
-            "service": "Memorystore for Redis",
-            "category": "cache",
-            "rationale": "Speeds up repeated reads and hot application lookups through managed Redis.",
-        },
-        "queue": {
-            "service": "Pub/Sub",
-            "category": "messaging",
-            "rationale": "Supports asynchronous event delivery across loosely coupled services.",
-        },
-        "object_storage": {
-            "service": "Cloud Storage",
-            "category": "storage",
-            "rationale": "Stores exported artifacts, uploads, and generated files in durable object storage.",
-        },
-        "secrets": {
-            "service": "Secret Manager",
-            "category": "security",
-            "rationale": "Stores secrets centrally and helps enforce separation between runtime code and credentials.",
-        },
-        "private_network": {
-            "service": "VPC Network",
-            "category": "network",
-            "rationale": "Creates the network perimeter and private service access path for backend and data services.",
-        },
-        "monitoring": {
-            "service": "Cloud Monitoring",
-            "category": "operations",
-            "rationale": "Captures metrics, logs, uptime signals, and alerting across the platform.",
+    },
+    SolutionArchetype.data_processing_platform: {
+        "azure": {
+            "backend_api": {"service": "Azure Container Apps", "category": "compute", "rationale": "Hosts control APIs and transformation services for data workflows."},
+            "queue": {"service": "Azure Event Hubs", "category": "messaging", "rationale": "Captures high-throughput event ingestion and streaming workloads."},
+            "object_storage": {"service": "Azure Data Lake Storage Gen2", "category": "storage", "rationale": "Stores raw and processed data zones for analytical and batch processing."},
+            "analytics": {"service": "Microsoft Fabric", "category": "analytics", "rationale": "Supports analytical exploration, reporting, and downstream business insight consumption."},
+            "integration": {"service": "Azure Data Factory", "category": "integration", "rationale": "Orchestrates pipelines, connectors, and batch movement across data systems."},
         },
     },
 }
@@ -234,14 +215,13 @@ SERVICE_CATALOG = {
 
 class CloudMappingEngine:
     def map(self, intent: ArchitectureIntent) -> tuple[list[ServiceMapping], list[Connection]]:
-        services = [self._map_component(intent.cloud.value, component) for component in intent.components]
-        connections = self._build_connections(services)
+        services = [self._map_component(intent, component) for component in intent.components]
+        connections = self._build_connections(intent, services)
         return services, connections
 
-    def _map_component(self, cloud: str, component: ParsedComponent) -> ServiceMapping:
+    def _map_component(self, intent: ArchitectureIntent, component: ParsedComponent) -> ServiceMapping:
         catalog_key = self._catalog_key(component)
-        template = SERVICE_CATALOG[cloud][catalog_key]
-
+        template = self._resolve_template(intent.cloud.value, intent.archetype, catalog_key)
         return ServiceMapping(
             id=component.type.value,
             type=component.type,
@@ -251,91 +231,144 @@ class CloudMappingEngine:
             rationale=template["rationale"],
         )
 
+    def _resolve_template(
+        self,
+        cloud: str,
+        archetype: SolutionArchetype,
+        catalog_key: str,
+    ) -> dict[str, str]:
+        overrides = ARCHETYPE_OVERRIDES.get(archetype, {}).get(cloud, {})
+        if catalog_key in overrides:
+            return overrides[catalog_key]
+        return BASE_SERVICE_CATALOG[cloud][catalog_key]
+
     def _catalog_key(self, component: ParsedComponent) -> str:
         if component.type != ComponentType.database:
             return component.type.value
-
         kind = component.database_kind or DatabaseKind.relational
         return f"database:{kind.value}"
 
-    def _build_connections(self, services: list[ServiceMapping]) -> list[Connection]:
+    def _build_connections(
+        self,
+        intent: ArchitectureIntent,
+        services: list[ServiceMapping],
+    ) -> list[Connection]:
         service_ids = {service.id for service in services}
+        if intent.archetype == SolutionArchetype.ai_security_and_compliance:
+            return self._build_ai_governance_connections(service_ids)
+        if intent.archetype == SolutionArchetype.ai_application_stack:
+            return self._build_ai_application_connections(service_ids)
+        if intent.archetype == SolutionArchetype.data_processing_platform:
+            return self._build_data_platform_connections(service_ids)
+        return self._build_default_connections(service_ids)
+
+    def _build_default_connections(self, service_ids: set[str]) -> list[Connection]:
         connections: list[Connection] = []
 
-        entry_target = self._first_present(
-            service_ids,
-            ["waf", "cdn", "frontend", "api_gateway", "backend_api"],
-        )
+        entry_target = self._first_present(service_ids, ["waf", "cdn", "frontend", "api_gateway", "backend_api"])
         if entry_target:
             connections.append(Connection(source="users", target=entry_target, label="HTTPS"))
-
         if "waf" in service_ids:
             downstream = self._first_present(service_ids, ["cdn", "frontend", "api_gateway", "backend_api"])
             if downstream and downstream != "waf":
                 connections.append(Connection(source="waf", target=downstream, label="Filtered traffic"))
-
         if "cdn" in service_ids and "frontend" in service_ids:
             connections.append(Connection(source="cdn", target="frontend", label="Static assets"))
-
         if "frontend" in service_ids and "authentication" in service_ids:
             connections.append(Connection(source="frontend", target="authentication", label="Sign-in"))
-
         if "frontend" in service_ids and "api_gateway" in service_ids:
             connections.append(Connection(source="frontend", target="api_gateway", label="API calls"))
         elif "frontend" in service_ids and "backend_api" in service_ids:
             connections.append(Connection(source="frontend", target="backend_api", label="API calls"))
-
         if "api_gateway" in service_ids and "backend_api" in service_ids:
             connections.append(Connection(source="api_gateway", target="backend_api", label="Routed traffic"))
-
         if "backend_api" in service_ids and "cache" in service_ids:
             connections.append(Connection(source="backend_api", target="cache", label="Hot reads"))
-
         if "backend_api" in service_ids and "database" in service_ids:
             connections.append(Connection(source="backend_api", target="database", label="Reads/Writes"))
-
         if "backend_api" in service_ids and "queue" in service_ids:
             connections.append(Connection(source="backend_api", target="queue", label="Async jobs"))
-
         if "backend_api" in service_ids and "object_storage" in service_ids:
             connections.append(Connection(source="backend_api", target="object_storage", label="Files"))
-
         if "backend_api" in service_ids and "secrets" in service_ids:
             connections.append(Connection(source="backend_api", target="secrets", label="Secrets"))
-
         if "private_network" in service_ids:
             for private_target in ["backend_api", "database", "cache", "queue", "object_storage", "secrets"]:
                 if private_target in service_ids:
-                    connections.append(
-                        Connection(
-                            source="private_network",
-                            target=private_target,
-                            label="Private access",
-                            dashed=True,
-                        ),
-                    )
-
+                    connections.append(Connection(source="private_network", target=private_target, label="Private access", dashed=True))
         if "monitoring" in service_ids:
-            for observed_service in [
-                "waf",
-                "api_gateway",
-                "backend_api",
-                "database",
-                "queue",
-                "cache",
-                "secrets",
-            ]:
+            for observed_service in ["waf", "api_gateway", "backend_api", "database", "queue", "cache", "secrets"]:
                 if observed_service in service_ids:
-                    connections.append(
-                        Connection(
-                            source="monitoring",
-                            target=observed_service,
-                            label="Telemetry",
-                            dashed=True,
-                        ),
-                    )
-
+                    connections.append(Connection(source="monitoring", target=observed_service, label="Telemetry", dashed=True))
         return connections
+
+    def _build_ai_governance_connections(self, service_ids: set[str]) -> list[Connection]:
+        connections = self._build_default_connections(service_ids)
+        first = self._first_present(service_ids, ["frontend", "api_gateway", "backend_api"])
+        if first and not any(c.source == "users" and c.target == first for c in connections):
+            connections.append(Connection(source="users", target=first, label="HTTPS"))
+        if "frontend" in service_ids and "analytics" in service_ids:
+            connections.append(Connection(source="frontend", target="analytics", label="Findings"))
+        if "backend_api" in service_ids and "discovery" in service_ids:
+            connections.append(Connection(source="backend_api", target="discovery", label="Inventory scan"))
+        if "backend_api" in service_ids and "policy_engine" in service_ids:
+            connections.append(Connection(source="backend_api", target="policy_engine", label="Control evaluation"))
+        if "discovery" in service_ids and "policy_engine" in service_ids:
+            connections.append(Connection(source="discovery", target="policy_engine", label="Resource context"))
+        if "policy_engine" in service_ids and "security_analytics" in service_ids:
+            connections.append(Connection(source="policy_engine", target="security_analytics", label="Findings"))
+        if "security_analytics" in service_ids and "analytics" in service_ids:
+            connections.append(Connection(source="security_analytics", target="analytics", label="Dashboards"))
+        if "backend_api" in service_ids and "object_storage" in service_ids:
+            connections.append(Connection(source="backend_api", target="object_storage", label="Evidence"))
+        if "backend_api" in service_ids and "database" in service_ids:
+            connections.append(Connection(source="backend_api", target="database", label="Findings"))
+        if "backend_api" in service_ids and "integration" in service_ids:
+            connections.append(Connection(source="backend_api", target="integration", label="Alerts"))
+        if "policy_engine" in service_ids and "ai_model_gateway" in service_ids:
+            connections.append(Connection(source="policy_engine", target="ai_model_gateway", label="AI analysis", dashed=True))
+        return self._dedupe_connections(connections)
+
+    def _build_ai_application_connections(self, service_ids: set[str]) -> list[Connection]:
+        connections = self._build_default_connections(service_ids)
+        if "backend_api" in service_ids and "ai_model_gateway" in service_ids:
+            connections.append(Connection(source="backend_api", target="ai_model_gateway", label="Model calls"))
+        if "backend_api" in service_ids and "search" in service_ids:
+            connections.append(Connection(source="backend_api", target="search", label="Retrieval"))
+        if "ml_platform" in service_ids and "ai_model_gateway" in service_ids:
+            connections.append(Connection(source="ml_platform", target="ai_model_gateway", label="Model lifecycle", dashed=True))
+        return self._dedupe_connections(connections)
+
+    def _build_data_platform_connections(self, service_ids: set[str]) -> list[Connection]:
+        connections: list[Connection] = []
+        first = self._first_present(service_ids, ["integration", "api_gateway", "backend_api"])
+        if first:
+            connections.append(Connection(source="users", target=first, label="Data requests"))
+        if "integration" in service_ids and "queue" in service_ids:
+            connections.append(Connection(source="integration", target="queue", label="Ingestion"))
+        if "queue" in service_ids and "backend_api" in service_ids:
+            connections.append(Connection(source="queue", target="backend_api", label="Processing"))
+        if "backend_api" in service_ids and "object_storage" in service_ids:
+            connections.append(Connection(source="backend_api", target="object_storage", label="Raw/curated data"))
+        if "object_storage" in service_ids and "analytics" in service_ids:
+            connections.append(Connection(source="object_storage", target="analytics", label="Reporting"))
+        if "backend_api" in service_ids and "database" in service_ids:
+            connections.append(Connection(source="backend_api", target="database", label="Metadata"))
+        if "monitoring" in service_ids:
+            for observed_service in ["integration", "queue", "backend_api", "object_storage", "analytics"]:
+                if observed_service in service_ids:
+                    connections.append(Connection(source="monitoring", target=observed_service, label="Telemetry", dashed=True))
+        return connections
+
+    def _dedupe_connections(self, connections: list[Connection]) -> list[Connection]:
+        deduped: list[Connection] = []
+        seen: set[tuple[str, str, str | None, bool]] = set()
+        for connection in connections:
+            key = (connection.source, connection.target, connection.label, connection.dashed)
+            if key not in seen:
+                deduped.append(connection)
+                seen.add(key)
+        return deduped
 
     def _first_present(self, service_ids: set[str], ordered_ids: list[str]) -> Optional[str]:
         for service_id in ordered_ids:

@@ -7,6 +7,7 @@ from app.models import (
     ExplanationSection,
     NetworkExposure,
     ServiceMapping,
+    SolutionArchetype,
 )
 
 
@@ -37,11 +38,7 @@ class ExplanationService:
         operational_controls = self._operational_controls(intent, service_lookup)
         risk_flags = self._risk_flags(intent, service_lookup)
 
-        next_steps = [
-            "Validate non-functional requirements with concrete SLOs, RPO/RTO targets, and a real traffic profile.",
-            "Translate the starter Terraform into reusable modules with environment promotion, policy checks, and secrets integration.",
-            "Define release governance with CI/CD approvals, security scanning, and operational runbooks before production rollout.",
-        ]
+        next_steps = self._next_steps(intent)
 
         return (
             [
@@ -60,7 +57,7 @@ class ExplanationService:
 
     def _overview(self, intent: ArchitectureIntent, service_lookup: dict[str, ServiceMapping]) -> str:
         parts = [
-            f"This design targets {intent.cloud.value.upper()} for an enterprise workload with {intent.preferences.tenancy.value.replace('_', ' ')} tenancy."
+            f"This design targets {intent.cloud.value.upper()} for a {intent.domain.value.replace('_', ' ')} workload using the {intent.archetype.value.replace('_', ' ')} archetype with {intent.preferences.tenancy.value.replace('_', ' ')} tenancy."
         ]
 
         if intent.preferences.multi_region:
@@ -79,6 +76,8 @@ class ExplanationService:
             parts.append(
                 f"The core flow spans {frontend.cloud_service}, {backend.cloud_service}, and {database.cloud_service}."
             )
+        elif backend:
+            parts.append(f"The control and orchestration layer is anchored on {backend.cloud_service}.")
 
         return " ".join(parts)
 
@@ -109,6 +108,21 @@ class ExplanationService:
             sentences.append(
                 f"A network boundary is represented through {private_network.cloud_service} so platform and data tiers can stay privately reachable."
             )
+        if intent.archetype == SolutionArchetype.ai_security_and_compliance:
+            discovery = service_lookup.get("discovery")
+            policy = service_lookup.get("policy_engine")
+            analytics = service_lookup.get("analytics")
+            if discovery and policy:
+                sentences.append(
+                    f"Discovery and control evaluation are driven through {discovery.cloud_service} and {policy.cloud_service} before findings are surfaced to operators."
+                )
+            if analytics:
+                sentences.append(f"{analytics.cloud_service} provides the reporting surface for findings, compliance trends, and tenant-facing evidence.")
+        if intent.archetype == SolutionArchetype.ai_application_stack:
+            model_gateway = service_lookup.get("ai_model_gateway")
+            search = service_lookup.get("search")
+            if model_gateway and search:
+                sentences.append(f"AI workflows combine {model_gateway.cloud_service} for inference and {search.cloud_service} for retrieval-grounded responses.")
 
         return " ".join(sentences)
 
@@ -135,6 +149,8 @@ class ExplanationService:
         if intent.preferences.compliance_frameworks:
             frameworks = ", ".join(self._format_framework(item) for item in intent.preferences.compliance_frameworks)
             sentences.append(f"The posture should be aligned with {frameworks} control expectations.")
+        if intent.archetype == SolutionArchetype.ai_security_and_compliance:
+            sentences.append("The product should track evidence lineage, control drift, and potential data leakage paths across discovered AI and supporting cloud resources.")
 
         return " ".join(sentences)
 
@@ -156,6 +172,8 @@ class ExplanationService:
             sentences.append(f"{database.cloud_service} should be configured with backup retention and tested recovery procedures.")
         if queue:
             sentences.append("Async messaging gives the platform a buffer for burst handling and safer downstream processing.")
+        if intent.archetype == SolutionArchetype.ai_security_and_compliance:
+            sentences.append("Scheduled scans, evidence storage, and policy refresh cycles should run as explicit operational workflows rather than one-off manual reviews.")
 
         return " ".join(sentences)
 
@@ -174,6 +192,8 @@ class ExplanationService:
             highlights.append("The design assumes a multi-region footprint for reach, resilience, or failover.")
         if "private_network" in service_lookup:
             highlights.append("Backend and data services are placed behind a private network boundary.")
+        if intent.archetype == SolutionArchetype.ai_security_and_compliance:
+            highlights.append("The architecture includes dedicated discovery, policy evaluation, findings persistence, and analytics surfaces.")
 
         return highlights
 
@@ -194,6 +214,8 @@ class ExplanationService:
         if intent.preferences.compliance_frameworks:
             frameworks = ", ".join(self._format_framework(item) for item in intent.preferences.compliance_frameworks)
             controls.append(f"Map security controls and evidence collection to {frameworks}.")
+        if intent.archetype == SolutionArchetype.ai_security_and_compliance:
+            controls.append("Track evidence for policy evaluations, resource posture, and data leakage indicators per tenant or subscription scope.")
 
         return controls
 
@@ -235,6 +257,8 @@ class ExplanationService:
             controls.append("Central monitoring should publish latency, saturation, error, and dependency health signals.")
         if len(intent.preferences.environments) < 3:
             controls.append("Add at least a staging environment before production rollout for safer release validation.")
+        if intent.archetype == SolutionArchetype.ai_security_and_compliance:
+            controls.append("Schedule recurring scans, baseline drift detection, and tenant-scoped evidence retention workflows.")
 
         return controls
 
@@ -253,8 +277,30 @@ class ExplanationService:
             risks.append("Compliance-heavy workloads usually need stronger environment separation and release evidence.")
         if "secrets" not in service_lookup:
             risks.append("Secret rotation and credential isolation are underspecified for the current architecture.")
+        if intent.archetype == SolutionArchetype.ai_security_and_compliance and "policy_engine" not in service_lookup:
+            risks.append("A governance-focused product without a dedicated policy evaluation layer may collapse into generic monitoring instead of real compliance assessment.")
 
         return risks or ["No critical design blockers detected at this abstraction level; validate the details with workload-specific requirements."]
+
+    def _next_steps(self, intent: ArchitectureIntent) -> list[str]:
+        baseline = [
+            "Validate non-functional requirements with concrete SLOs, RPO/RTO targets, and a real traffic profile.",
+            "Translate the starter Terraform into reusable modules with environment promotion, policy checks, and secrets integration.",
+            "Define release governance with CI/CD approvals, security scanning, and operational runbooks before production rollout.",
+        ]
+        if intent.archetype == SolutionArchetype.ai_security_and_compliance:
+            return [
+                "Define the exact inventory and scan scope across AI resources, supporting data stores, identities, and network paths.",
+                "Map findings to a control framework and evidence model so posture, leakage, and compliance results are explainable to customers.",
+                "Design tenant onboarding, cross-subscription access, and safe remediation workflows before production rollout.",
+            ]
+        if intent.archetype == SolutionArchetype.ai_application_stack:
+            return [
+                "Validate prompt flow, model routing, grounding data quality, and safety controls with real application scenarios.",
+                "Define evaluation loops for latency, retrieval quality, and response safety before production rollout.",
+                "Translate the starter Terraform into reusable modules with secrets, observability, and deployment guardrails.",
+            ]
+        return baseline
 
     def _format_framework(self, framework: ComplianceFramework) -> str:
         mapping = {

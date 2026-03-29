@@ -38,6 +38,8 @@ class ArchitectureService:
             title=intent.title,
             summary=intent.summary,
             cloud=intent.cloud,
+            domain=intent.domain,
+            archetype=intent.archetype,
             preferences=intent.preferences,
             priorities=intent.priorities,
             assumptions=intent.assumptions,

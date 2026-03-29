@@ -50,6 +50,31 @@ class TenancyModel(str, Enum):
     pooled_multi_tenant = "pooled_multi_tenant"
 
 
+class SolutionDomain(str, Enum):
+    web_saas = "web_saas"
+    data_platform = "data_platform"
+    ai_platform = "ai_platform"
+    ai_governance = "ai_governance"
+    cybersecurity = "cybersecurity"
+    integration_platform = "integration_platform"
+    developer_platform = "developer_platform"
+    analytics_platform = "analytics_platform"
+    enterprise_application = "enterprise_application"
+
+
+class SolutionArchetype(str, Enum):
+    transactional_saas = "transactional_saas"
+    event_driven_platform = "event_driven_platform"
+    data_processing_platform = "data_processing_platform"
+    ai_application_stack = "ai_application_stack"
+    ai_security_and_compliance = "ai_security_and_compliance"
+    security_operations_center = "security_operations_center"
+    internal_developer_portal = "internal_developer_portal"
+    integration_hub = "integration_hub"
+    analytics_and_reporting = "analytics_and_reporting"
+    enterprise_system_of_record = "enterprise_system_of_record"
+
+
 class ComponentType(str, Enum):
     frontend = "frontend"
     backend_api = "backend_api"
@@ -64,6 +89,14 @@ class ComponentType(str, Enum):
     waf = "waf"
     secrets = "secrets"
     private_network = "private_network"
+    analytics = "analytics"
+    policy_engine = "policy_engine"
+    security_analytics = "security_analytics"
+    discovery = "discovery"
+    ai_model_gateway = "ai_model_gateway"
+    search = "search"
+    ml_platform = "ml_platform"
+    integration = "integration"
 
 
 class DatabaseKind(str, Enum):
@@ -106,6 +139,8 @@ class ArchitectureIntent(BaseModel):
     title: str
     summary: str
     cloud: CloudProvider
+    domain: SolutionDomain = SolutionDomain.enterprise_application
+    archetype: SolutionArchetype = SolutionArchetype.transactional_saas
     preferences: ArchitecturePreferences
     priorities: list[str] = Field(default_factory=list)
     patterns: list[str] = Field(default_factory=list)
@@ -142,6 +177,8 @@ class ArchitectureResponse(BaseModel):
     title: str
     summary: str
     cloud: CloudProvider
+    domain: SolutionDomain = SolutionDomain.enterprise_application
+    archetype: SolutionArchetype = SolutionArchetype.transactional_saas
     preferences: ArchitecturePreferences
     priorities: list[str]
     assumptions: list[str]

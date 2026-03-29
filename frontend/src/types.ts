@@ -13,6 +13,27 @@ export type ComplianceFramework =
   | "pci_dss"
   | "gdpr";
 export type TenancyModel = "single_tenant" | "pooled_multi_tenant";
+export type SolutionDomain =
+  | "web_saas"
+  | "data_platform"
+  | "ai_platform"
+  | "ai_governance"
+  | "cybersecurity"
+  | "integration_platform"
+  | "developer_platform"
+  | "analytics_platform"
+  | "enterprise_application";
+export type SolutionArchetype =
+  | "transactional_saas"
+  | "event_driven_platform"
+  | "data_processing_platform"
+  | "ai_application_stack"
+  | "ai_security_and_compliance"
+  | "security_operations_center"
+  | "internal_developer_portal"
+  | "integration_hub"
+  | "analytics_and_reporting"
+  | "enterprise_system_of_record";
 
 export interface ArchitecturePreferences {
   workload_name?: string | null;
@@ -68,6 +89,8 @@ export interface ArchitectureResponse {
   title: string;
   summary: string;
   cloud: CloudProvider;
+  domain?: SolutionDomain;
+  archetype?: SolutionArchetype;
   preferences: ArchitecturePreferences;
   priorities: string[];
   assumptions: string[];

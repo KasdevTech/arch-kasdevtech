@@ -16,6 +16,11 @@ CATEGORY_CLASS_NAMES = {
     "security": "security",
     "network": "network",
     "operations": "operations",
+    "analytics": "analytics",
+    "governance": "governance",
+    "control": "control",
+    "ai": "ai",
+    "integration": "integration",
 }
 
 
@@ -36,13 +41,18 @@ class MermaidDiagramService:
             "  classDef security fill:#fff7ed,stroke:#c2410c,color:#7c2d12;",
             "  classDef network fill:#eef2ff,stroke:#4338ca,color:#312e81;",
             "  classDef operations fill:#f8fafc,stroke:#475569,color:#0f172a;",
+            "  classDef analytics fill:#ecfeff,stroke:#0891b2,color:#164e63;",
+            "  classDef governance fill:#fef3c7,stroke:#b45309,color:#78350f;",
+            "  classDef control fill:#e2e8f0,stroke:#475569,color:#0f172a;",
+            "  classDef ai fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;",
+            "  classDef integration fill:#f5f3ff,stroke:#6d28d9,color:#4c1d95;",
             '  users["Users"]:::actor',
         ]
 
         for service in services:
             node_id = service.id
             label = self._format_label(service.cloud_service, service.label)
-            class_name = CATEGORY_CLASS_NAMES[service.category]
+            class_name = CATEGORY_CLASS_NAMES.get(service.category, "control")
             lines.append(f'  {node_id}["{label}"]:::{class_name}')
 
         for connection in connections:
