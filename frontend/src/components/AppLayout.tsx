@@ -3,11 +3,6 @@ import { useArchitectureStore } from "../context/ArchitectureStore";
 
 const PAGE_TITLES: Array<{ prefix: string; title: string; subtitle: string }> = [
   {
-    prefix: "/app/chat",
-    title: "Architect Chat",
-    subtitle: "Refine the problem conversationally and generate architecture directly from the dialogue.",
-  },
-  {
     prefix: "/app/studio",
     title: "Architecture Studio",
     subtitle: "Capture workload intent and generate enterprise architecture deliverables.",
@@ -60,15 +55,6 @@ export function AppLayout() {
           </div>
 
           <nav className="sidebar-nav">
-            <NavLink
-              className={({ isActive }) =>
-                isActive ? "sidebar-link active" : "sidebar-link"
-              }
-              to="/app/chat"
-            >
-              <span>Architect Chat</span>
-              <small>Turn conversation into architecture</small>
-            </NavLink>
             <NavLink
               className={({ isActive }) =>
                 isActive ? "sidebar-link active" : "sidebar-link"
@@ -138,9 +124,6 @@ export function AppLayout() {
             <div className="topbar-actions">
               <Link className="button-link secondary" to="/app/projects">
                 Open Library
-              </Link>
-              <Link className="button-link secondary" to="/app/chat">
-                Open Chat
               </Link>
               <Link className="button-link primary" to="/app/studio">
                 New Architecture

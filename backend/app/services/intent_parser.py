@@ -467,6 +467,18 @@ class IntentParser:
         domain_hint = self._forced_domain(lowered)
         components: list[ParsedComponent] = []
 
+        if any(
+            phrase in lowered
+            for phrase in ["three tier", "3 tier", "three-tier", "three tier app", "sample 3 tier"]
+        ):
+            components.extend(
+                [
+                    self._build_component(ComponentType.frontend, lowered),
+                    self._build_component(ComponentType.backend_api, lowered),
+                    self._build_component(ComponentType.database, lowered),
+                ]
+            )
+
         for component_type, keywords in self.COMPONENT_KEYWORDS.items():
             if any(keyword in lowered for keyword in keywords):
                 components.append(self._build_component(component_type, lowered))

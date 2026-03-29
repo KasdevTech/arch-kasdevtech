@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from typing import Optional
+
+from app.core.config import settings
 from app.models import (
     ArchitectChatRequest,
     ArchitectChatResponse,
@@ -8,15 +11,29 @@ from app.models import (
     ChatRole,
 )
 from app.services.architecture_service import architecture_service
+from app.services.prompt_templates import CHAT_ASSISTANT_SYSTEM_PROMPT
 
 
 class ChatArchitectService:
+    QUICK_REPLIES = {
+        "hi": "Hi. Tell me what you want to build, or ask me an architecture question.",
+        "hello": "Hello. Tell me what you want to build, or ask me an architecture question.",
+        "hey": "Hey. Tell me what you want to build, or ask me an architecture question.",
+    }
+
     GENERATION_HINTS = [
         "design",
         "architecture",
         "build",
+        "app",
+        "application",
         "platform",
         "system",
+        "three tier",
+        "3 tier",
+        "three-tier",
+        "starter app",
+        "sample app",
         "microservices",
         "api",
         "database",
@@ -39,13 +56,21 @@ class ChatArchitectService:
     def respond(self, payload: ArchitectChatRequest) -> ArchitectChatResponse:
         transcript = self._conversation_prompt(payload.messages)
         latest_user_message = self._latest_user_message(payload.messages)
+        quick_reply = self._quick_reply(latest_user_message)
+
+        if quick_reply is not None:
+            return ArchitectChatResponse(
+                reply=quick_reply,
+                ready_to_generate=False,
+            )
 
         if not self._is_ready_to_generate(transcript, latest_user_message):
+            try:
+                llm_reply = self._reply_with_llm(payload.messages, payload.cloud.value)
+            except Exception:
+                llm_reply = None
             return ArchitectChatResponse(
-                reply=(
-                    "I can turn this into an architecture once I have the workload goal, "
-                    "main components, scale or availability needs, and any security or compliance constraints."
-                ),
+                reply=llm_reply or self._fallback_reply(latest_user_message),
                 ready_to_generate=False,
             )
 
@@ -60,8 +85,28 @@ class ChatArchitectService:
 
         priorities = ", ".join(architecture.priorities[:3]) or "security and resilience"
         highlights = ", ".join(service.cloud_service for service in architecture.services[:4])
+        try:
+            llm_summary = self._reply_with_llm(
+                payload.messages
+                + [
+                    ChatMessage(
+                        role=ChatRole.assistant,
+                        content=(
+                            "Architecture generated. Summarize it naturally for the user in 2-3 short sentences. "
+                            f"Cloud: {architecture.cloud.value}. "
+                            f"Domain: {architecture.domain.value}. "
+                            f"Archetype: {architecture.archetype.value}. "
+                            f"Highlights: {highlights}. "
+                            f"Priorities: {', '.join(architecture.priorities[:3])}."
+                        ),
+                    )
+                ],
+                payload.cloud.value,
+            )
+        except Exception:
+            llm_summary = None
         return ArchitectChatResponse(
-            reply=(
+            reply=llm_summary or (
                 f"I generated a {architecture.cloud.value.upper()} {architecture.domain.value.replace('_', ' ')} "
                 f"architecture using the {architecture.archetype.value.replace('_', ' ')} pattern. "
                 f"It is optimized for {priorities}, and the initial service backbone includes {highlights}."
@@ -90,7 +135,82 @@ class ChatArchitectService:
         matched_hints = sum(
             1 for keyword in self.GENERATION_HINTS if keyword in lowered_transcript
         )
-        return len(lowered_latest) >= 20 and matched_hints >= 2
+        if any(
+            phrase in lowered_latest
+            for phrase in ["three tier", "3 tier", "three-tier", "starter app", "sample app"]
+        ):
+            return True
+        return len(lowered_latest) >= 12 and matched_hints >= 2
+
+    def _reply_with_llm(
+        self,
+        messages: list[ChatMessage],
+        cloud: str,
+    ) -> Optional[str]:
+        client, model = self._build_llm_client()
+        if client is None or not model:
+            return None
+
+        completion = client.chat.completions.create(
+            model=model,
+            temperature=0.4,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        f"{CHAT_ASSISTANT_SYSTEM_PROMPT}\n"
+                        f"Current preferred cloud: {cloud}."
+                    ),
+                },
+                *[
+                    {"role": message.role.value, "content": message.content}
+                    for message in messages[-12:]
+                ],
+            ],
+        )
+        content = completion.choices[0].message.content
+        if not content:
+            return None
+        return content.strip()
+
+    def _build_llm_client(self) -> tuple[object | None, str]:
+        try:
+            from openai import OpenAI
+        except ImportError:
+            return None, ""
+
+        if settings.llm_service_base_url:
+            return (
+                OpenAI(
+                    api_key=settings.llm_service_api_key or "local-service",
+                    base_url=settings.llm_service_base_url,
+                ),
+                settings.llm_service_model or "local-model",
+            )
+
+        if settings.openai_api_key:
+            return (
+                OpenAI(api_key=settings.openai_api_key),
+                settings.openai_model,
+            )
+
+        return None, ""
+
+    def _fallback_reply(self, latest_user_message: str) -> str:
+        if len(latest_user_message.strip()) < 12:
+            return "Tell me a bit more about what you want to build, and I’ll help shape it."
+
+        return (
+            "I can help with both general architecture questions and full solution design. "
+            "If you want an architecture, tell me the workload goal, main components, scale, "
+            "and any security or compliance constraints."
+        )
+
+    def _quick_reply(self, latest_user_message: str) -> str | None:
+        normalized = latest_user_message.strip().lower()
+        if not normalized:
+            return "Tell me what you want to build, and I’ll help shape the architecture."
+        return self.QUICK_REPLIES.get(normalized)
 
 
 chat_architect_service = ChatArchitectService()
