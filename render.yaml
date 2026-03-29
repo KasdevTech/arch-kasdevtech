@@ -8,6 +8,8 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
       - key: AI_ARCHITECT_CORS_ORIGINS
         value: https://arch-kasdevtech-frontend.onrender.com
 
