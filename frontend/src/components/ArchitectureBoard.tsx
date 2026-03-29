@@ -1,0 +1,791 @@
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
+import type {
+  ArchitectureResponse,
+  CanvasLayout,
+  Connection,
+  ServiceMapping,
+} from "../types";
+
+type DiagramNode = {
+  id: string;
+  title: string;
+  subtitle: string;
+  category: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  image: string;
+  locked?: boolean;
+};
+
+type DragState = {
+  nodeId: string;
+  offsetX: number;
+  offsetY: number;
+};
+
+const NODE_WIDTH = 230;
+const NODE_HEIGHT = 96;
+const VIEWBOX_WIDTH = 1280;
+const VIEWBOX_HEIGHT = 820;
+
+const COLUMN_X: Record<string, number> = {
+  actor: 40,
+  ingress: 260,
+  app: 530,
+  data: 800,
+  control: 1070,
+};
+
+const CATEGORY_TO_COLUMN: Record<string, keyof typeof COLUMN_X> = {
+  security: "ingress",
+  edge: "ingress",
+  presentation: "ingress",
+  identity: "ingress",
+  api: "app",
+  compute: "app",
+  cache: "app",
+  messaging: "app",
+  data: "data",
+  storage: "data",
+  network: "control",
+  operations: "control",
+};
+
+const CLOUD_IMAGE_URLS = {
+  azure: "https://cdn.simpleicons.org/microsoftazure/0078D4",
+  aws: "https://cdn.simpleicons.org/amazonaws/FF9900",
+  gcp: "https://cdn.simpleicons.org/googlecloud/4285F4",
+} as const;
+
+const AZURE_OFFICIAL_IMAGE_URLS: Record<string, string> = {
+  waf:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/networking/10362-icon-service-Web-Application-Firewall-Policies(WAF).svg",
+  cdn:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/networking/10073-icon-service-Front-Door-and-CDN-Profiles.svg",
+  frontend:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/web/01007-icon-service-Static-Apps.svg",
+  authentication:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/identity/03338-icon-service-External-Identities.svg",
+  api_gateway:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/web/10042-icon-service-API-Management-Services.svg",
+  backend_api:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/web/10035-icon-service-App-Services.svg",
+  database:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/databases/10130-icon-service-SQL-Database.svg",
+  cache:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/databases/10137-icon-service-Cache-Redis.svg",
+  queue:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/integration/10836-icon-service-Azure-Service-Bus.svg",
+  object_storage:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/storage/10086-icon-service-Storage-Accounts.svg",
+  secrets:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/security/10245-icon-service-Key-Vaults.svg",
+  private_network:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/networking/10061-icon-service-Virtual-Networks.svg",
+  monitoring:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/management%20%2B%20governance/00001-icon-service-Monitor.svg",
+} as const;
+
+const SERVICE_IMAGE_URLS: Record<string, string> = {
+  authentication: "https://cdn.simpleicons.org/auth0/EB5424",
+  database: "https://cdn.simpleicons.org/postgresql/336791",
+  cache: "https://cdn.simpleicons.org/redis/DC382D",
+  queue: "https://cdn.simpleicons.org/apachekafka/FFFFFF",
+  monitoring: "https://cdn.simpleicons.org/datadog/632CA6",
+  object_storage: "https://cdn.simpleicons.org/cloudflare/FF7A00",
+  private_network: "https://cdn.simpleicons.org/wireguard/88171A",
+  waf: "https://cdn.simpleicons.org/cloudflare/FF7A00",
+  secrets: "https://cdn.simpleicons.org/1password/3B66BC",
+  api_gateway: "https://cdn.simpleicons.org/openapiinitiative/6BA539",
+  backend_api: "https://cdn.simpleicons.org/docker/2496ED",
+  frontend: "https://cdn.simpleicons.org/react/61DAFB",
+  cdn: "https://cdn.simpleicons.org/cloudflare/FF7A00",
+};
+
+function serviceImage(cloud: ArchitectureResponse["cloud"], serviceId: string) {
+  if (cloud === "azure" && AZURE_OFFICIAL_IMAGE_URLS[serviceId]) {
+    return AZURE_OFFICIAL_IMAGE_URLS[serviceId];
+  }
+
+  return SERVICE_IMAGE_URLS[serviceId] ?? CLOUD_IMAGE_URLS[cloud];
+}
+
+function serviceSubtitle(service: ServiceMapping) {
+  return `${service.category} • ${service.label}`;
+}
+
+function categoryFill(category: string) {
+  const fills: Record<string, string> = {
+    security: "#2d1b1f",
+    edge: "#1a2336",
+    presentation: "#132b2b",
+    identity: "#2a1c2e",
+    api: "#18253c",
+    compute: "#15233a",
+    cache: "#2a1a22",
+    messaging: "#241a31",
+    data: "#182c21",
+    storage: "#162d2d",
+    network: "#191d39",
+    operations: "#1f2431",
+    actor: "#102638",
+  };
+
+  return fills[category] ?? "#162033";
+}
+
+function columnTitle(column: string) {
+  const titles: Record<string, string> = {
+    ingress: "Ingress",
+    app: "Application",
+    data: "Data",
+    control: "Control Plane",
+  };
+
+  return titles[column] ?? column;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function xmlSafe(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function drawIoStyle(node: DiagramNode) {
+  return [
+    "rounded=1",
+    "arcSize=18",
+    "whiteSpace=wrap",
+    "html=1",
+    `fillColor=${categoryFill(node.category)}`,
+    "strokeColor=#34435f",
+    "fontColor=#ecf3ff",
+    "fontSize=15",
+    "spacingLeft=20",
+    "spacingTop=18",
+  ].join(";");
+}
+
+function buildNodes(architecture: ArchitectureResponse) {
+  const nodes: DiagramNode[] = [
+    {
+      id: "users",
+      title: "Users",
+      subtitle: "clients • browsers",
+      category: "actor",
+      x: COLUMN_X.actor,
+      y: 320,
+      width: 150,
+      height: 78,
+      image: "https://cdn.simpleicons.org/googlemessages/FFFFFF",
+      locked: true,
+    },
+  ];
+
+  const grouped = new Map<string, ServiceMapping[]>();
+
+  for (const service of architecture.services) {
+    const column = CATEGORY_TO_COLUMN[service.category] ?? "control";
+    const current = grouped.get(column) ?? [];
+    current.push(service);
+    grouped.set(column, current);
+  }
+
+  for (const [column, services] of grouped.entries()) {
+    services.forEach((service, index) => {
+      const totalHeight = services.length * NODE_HEIGHT + (services.length - 1) * 22;
+      const startY = Math.max(90, (VIEWBOX_HEIGHT - totalHeight) / 2);
+      const saved = architecture.canvas_layout?.[service.id];
+
+      nodes.push({
+        id: service.id,
+        title: service.cloud_service,
+        subtitle: serviceSubtitle(service),
+        category: service.category,
+        x: saved?.x ?? COLUMN_X[column],
+        y: saved?.y ?? startY + index * (NODE_HEIGHT + 22),
+        width: NODE_WIDTH,
+        height: NODE_HEIGHT,
+        image: serviceImage(architecture.cloud, service.id),
+      });
+    });
+  }
+
+  return nodes;
+}
+
+function centerRight(node: DiagramNode) {
+  return {
+    x: node.x + node.width,
+    y: node.y + node.height / 2,
+  };
+}
+
+function centerLeft(node: DiagramNode) {
+  return {
+    x: node.x,
+    y: node.y + node.height / 2,
+  };
+}
+
+function pathBetween(source: DiagramNode, target: DiagramNode) {
+  const start = centerRight(source);
+  const end = centerLeft(target);
+  const delta = Math.max(36, (end.x - start.x) / 2);
+  return `M ${start.x} ${start.y} C ${start.x + delta} ${start.y}, ${end.x - delta} ${end.y}, ${end.x} ${end.y}`;
+}
+
+function connectionLine(source: DiagramNode, target: DiagramNode) {
+  const start = centerRight(source);
+  const end = centerLeft(target);
+  return {
+    x1: Math.round(start.x),
+    y1: Math.round(start.y),
+    x2: Math.round(end.x),
+    y2: Math.round(end.y),
+  };
+}
+
+function buildCanvasLayout(nodes: DiagramNode[]) {
+  const layout: CanvasLayout = {};
+
+  nodes.forEach((node) => {
+    if (!node.locked) {
+      layout[node.id] = { x: Math.round(node.x), y: Math.round(node.y) };
+    }
+  });
+
+  return layout;
+}
+
+async function dataUrlForImage(url: string) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return url;
+    }
+
+    const blob = await response.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return url;
+  }
+}
+
+async function buildExportSvgMarkup(svgElement: SVGSVGElement) {
+  const clone = svgElement.cloneNode(true) as SVGSVGElement;
+  const images = Array.from(clone.querySelectorAll("image"));
+
+  await Promise.all(
+    images.map(async (image) => {
+      const href =
+        image.getAttribute("href") ?? image.getAttributeNS("http://www.w3.org/1999/xlink", "href");
+
+      if (!href || href.startsWith("data:")) {
+        return;
+      }
+
+      const embedded = await dataUrlForImage(href);
+      image.setAttribute("href", embedded);
+    }),
+  );
+
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+
+  const markup = new XMLSerializer().serializeToString(clone);
+  return `<?xml version="1.0" encoding="UTF-8"?>\n${markup}`;
+}
+
+function buildDrawIoXml(
+  architecture: ArchitectureResponse,
+  nodes: DiagramNode[],
+  connections: Connection[],
+) {
+  const nodeCells = nodes
+    .map((node, index) => {
+      const id = `node-${index + 2}`;
+      return `
+        <mxCell id="${id}" value="${xmlSafe(`${node.title}&#xa;${node.subtitle}`)}" style="${xmlSafe(drawIoStyle(node))}" vertex="1" parent="1">
+          <mxGeometry x="${Math.round(node.x)}" y="${Math.round(node.y)}" width="${Math.round(node.width)}" height="${Math.round(node.height)}" as="geometry" />
+        </mxCell>`;
+    })
+    .join("");
+
+  const ids = new Map(nodes.map((node, index) => [node.id, `node-${index + 2}`]));
+  const edgeCells = connections
+    .map((connection, index) => {
+      const source = ids.get(connection.source);
+      const target = ids.get(connection.target);
+
+      if (!source || !target) {
+        return "";
+      }
+
+      return `
+        <mxCell id="edge-${index + 100}" value="${xmlSafe(connection.label ?? "")}" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#7dd3fc;dashed=${connection.dashed ? 1 : 0};fontColor=#cbd5e1;" edge="1" parent="1" source="${source}" target="${target}">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>`;
+    })
+    .join("");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="${new Date().toISOString()}" agent="AI Architect" version="24.7.17">
+  <diagram id="${xmlSafe(architecture.request_id)}" name="${xmlSafe(architecture.title)}">
+    <mxGraphModel dx="${VIEWBOX_WIDTH}" dy="${VIEWBOX_HEIGHT}" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        ${nodeCells}
+        ${edgeCells}
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>`;
+}
+
+function downloadTextFile(filename: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function slugifyTitle(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, "-");
+}
+
+export function ArchitectureBoard({
+  architecture,
+  onLayoutChange,
+  readOnly = false,
+  showLegend = true,
+  showToolbar = true,
+  showConnectionLabels = true,
+}: {
+  architecture: ArchitectureResponse;
+  onLayoutChange?: (layout: CanvasLayout) => void;
+  readOnly?: boolean;
+  showLegend?: boolean;
+  showToolbar?: boolean;
+  showConnectionLabels?: boolean;
+}) {
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const dragStateRef = useRef<DragState | null>(null);
+  const [nodes, setNodes] = useState(() => buildNodes(architecture));
+  const [exporting, setExporting] = useState<string | null>(null);
+  const nodeMap = new Map(nodes.map((node) => [node.id, node]));
+
+  useEffect(() => {
+    setNodes(buildNodes(architecture));
+  }, [architecture]);
+
+  useEffect(() => {
+    function handlePointerMove(event: PointerEvent) {
+      const dragState = dragStateRef.current;
+      const svgElement = svgRef.current;
+
+      if (!dragState || !svgElement) {
+        return;
+      }
+
+      const rect = svgElement.getBoundingClientRect();
+      const svgX = ((event.clientX - rect.left) / rect.width) * VIEWBOX_WIDTH;
+      const svgY = ((event.clientY - rect.top) / rect.height) * VIEWBOX_HEIGHT;
+
+      setNodes((current) =>
+        current.map((node) =>
+          node.id !== dragState.nodeId
+            ? node
+            : {
+                ...node,
+                x: clamp(svgX - dragState.offsetX, 20, VIEWBOX_WIDTH - node.width - 20),
+                y: clamp(svgY - dragState.offsetY, 32, VIEWBOX_HEIGHT - node.height - 32),
+              },
+        ),
+      );
+    }
+
+    function handlePointerUp() {
+      if (!dragStateRef.current) {
+        return;
+      }
+
+      dragStateRef.current = null;
+      document.body.style.userSelect = "";
+      onLayoutChange?.(buildCanvasLayout(nodes));
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [nodes, onLayoutChange]);
+
+  function handlePointerDown(
+    event: ReactPointerEvent<SVGGElement>,
+    node: DiagramNode,
+  ) {
+    if (node.locked || !svgRef.current) {
+      return;
+    }
+
+    if (readOnly) {
+      return;
+    }
+
+    const rect = svgRef.current.getBoundingClientRect();
+    const svgX = ((event.clientX - rect.left) / rect.width) * VIEWBOX_WIDTH;
+    const svgY = ((event.clientY - rect.top) / rect.height) * VIEWBOX_HEIGHT;
+
+    dragStateRef.current = {
+      nodeId: node.id,
+      offsetX: svgX - node.x,
+      offsetY: svgY - node.y,
+    };
+
+    document.body.style.userSelect = "none";
+  }
+
+  function resetLayout() {
+    const resetNodes = buildNodes({ ...architecture, canvas_layout: undefined });
+    setNodes(resetNodes);
+    onLayoutChange?.(buildCanvasLayout(resetNodes));
+  }
+
+  async function exportSvg(filename: string) {
+    if (!svgRef.current) {
+      return;
+    }
+
+    setExporting(filename);
+    const markup = await buildExportSvgMarkup(svgRef.current);
+    downloadTextFile(filename, markup, "image/svg+xml;charset=utf-8");
+    setExporting(null);
+  }
+
+  async function exportPng() {
+    if (!svgRef.current) {
+      return;
+    }
+
+    setExporting("png");
+
+    try {
+      const markup = await buildExportSvgMarkup(svgRef.current);
+      const blob = new Blob([markup], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const image = new Image();
+
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("PNG export failed."));
+        image.src = url;
+      });
+
+      const canvas = document.createElement("canvas");
+      canvas.width = VIEWBOX_WIDTH * 2;
+      canvas.height = VIEWBOX_HEIGHT * 2;
+
+      const context = canvas.getContext("2d");
+      if (!context) {
+        throw new Error("Canvas export is unavailable in this browser.");
+      }
+
+      context.fillStyle = "#09111f";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob((pngBlob) => {
+        if (!pngBlob) {
+          throw new Error("PNG export returned an empty file.");
+        }
+
+        const pngUrl = URL.createObjectURL(pngBlob);
+        const link = document.createElement("a");
+        link.href = pngUrl;
+        link.download = `${slugifyTitle(architecture.title)}-architecture.png`;
+        link.click();
+        URL.revokeObjectURL(pngUrl);
+      }, "image/png");
+
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  async function exportDrawIo() {
+    setExporting("drawio");
+    const xml = buildDrawIoXml(architecture, nodes, architecture.connections);
+    downloadTextFile(
+      `${slugifyTitle(architecture.title)}-architecture.drawio`,
+      xml,
+      "application/xml;charset=utf-8",
+    );
+    setExporting(null);
+  }
+
+  return (
+    <section className="card board-shell">
+      <div className="board-toolbar">
+        {showToolbar ? (
+          <>
+            <div>
+              <p className="eyebrow">Live Architecture Canvas</p>
+              <h2>{architecture.cloud.toUpperCase()} visual diagram</h2>
+              <p className="section-copy">
+                Drag services to tune the layout, then export the current canvas as
+                enterprise handoff assets for engineering and architecture reviews.
+              </p>
+            </div>
+
+            <div className="board-actions">
+              <button className="secondary-button" onClick={resetLayout} type="button">
+                Reset layout
+              </button>
+              <button
+                className="secondary-button"
+                disabled={Boolean(exporting)}
+                onClick={() => exportSvg(`${architecture.request_id}-architecture.svg`)}
+                type="button"
+              >
+                {exporting === `${architecture.request_id}-architecture.svg`
+                  ? "Exporting..."
+                  : "Download SVG"}
+              </button>
+              <button
+                className="secondary-button"
+                disabled={Boolean(exporting)}
+                onClick={exportPng}
+                type="button"
+              >
+                {exporting === "png" ? "Exporting..." : "Download PNG"}
+              </button>
+              <button
+                className="secondary-button"
+                disabled={Boolean(exporting)}
+                onClick={exportDrawIo}
+                type="button"
+              >
+                {exporting === "drawio" ? "Exporting..." : "Draw.io XML"}
+              </button>
+              <button
+                className="primary-button"
+                disabled={Boolean(exporting)}
+                onClick={() =>
+                  exportSvg(`${architecture.request_id}-visio-import.svg`)
+                }
+                type="button"
+              >
+                {exporting === `${architecture.request_id}-visio-import.svg`
+                  ? "Exporting..."
+                  : "Visio Import SVG"}
+              </button>
+            </div>
+          </>
+        ) : null}
+      </div>
+
+      {showToolbar ? (
+        <div className="canvas-hint">
+          <span>Drag any service card to rearrange the architecture.</span>
+          <span>Layout autosaves on release for this project.</span>
+        </div>
+      ) : null}
+
+      <div className="canvas-shell">
+        <svg
+          ref={svgRef}
+          className="architecture-canvas"
+          viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <linearGradient id="boardGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="rgba(45, 212, 191, 0.18)" />
+              <stop offset="100%" stopColor="rgba(14, 116, 144, 0)" />
+            </linearGradient>
+          </defs>
+
+          <rect
+            fill="#0d1730"
+            height={VIEWBOX_HEIGHT}
+            rx="36"
+            width={VIEWBOX_WIDTH}
+            x="0"
+            y="0"
+          />
+          <rect
+            fill="url(#boardGlow)"
+            height={VIEWBOX_HEIGHT}
+            rx="36"
+            width={VIEWBOX_WIDTH}
+            x="0"
+            y="0"
+          />
+
+          {Object.entries(COLUMN_X)
+            .filter(([column]) => column !== "actor")
+            .map(([column, x]) => (
+              <g key={column}>
+                <text
+                  fill="#7dd3fc"
+                  fontFamily="'IBM Plex Mono', monospace"
+                  fontSize="14"
+                  letterSpacing="1.4"
+                  x={x}
+                  y="54"
+                >
+                  {columnTitle(column)}
+                </text>
+                <line
+                  stroke="rgba(125, 211, 252, 0.12)"
+                  strokeDasharray="6 10"
+                  strokeWidth="1"
+                  x1={x - 26}
+                  x2={x - 26}
+                  y1="72"
+                  y2={VIEWBOX_HEIGHT - 40}
+                />
+              </g>
+            ))}
+
+          {architecture.connections.map((connection) => {
+            const source = nodeMap.get(connection.source);
+            const target = nodeMap.get(connection.target);
+
+            if (!source || !target) {
+              return null;
+            }
+
+            const line = connectionLine(source, target);
+            const labelX = (line.x1 + line.x2) / 2;
+            const labelY = (line.y1 + line.y2) / 2 - 10;
+
+            return (
+              <g key={`${connection.source}-${connection.target}-${connection.label ?? "line"}`}>
+                <path
+                  d={pathBetween(source, target)}
+                  fill="none"
+                  stroke={connection.dashed ? "#7dd3fc" : "#94a3b8"}
+                  strokeDasharray={connection.dashed ? "10 10" : undefined}
+                  strokeLinecap="round"
+                  strokeWidth={connection.dashed ? 4 : 3}
+                />
+                {showConnectionLabels && connection.label ? (
+                  <text
+                    fill="#cbd5e1"
+                    fontFamily="'IBM Plex Mono', monospace"
+                    fontSize="13"
+                    x={labelX}
+                    y={labelY}
+                  >
+                    {connection.label}
+                  </text>
+                ) : null}
+              </g>
+            );
+          })}
+
+          {nodes.map((node) => (
+            <g
+              key={node.id}
+              className={node.locked ? "canvas-node is-locked" : "canvas-node"}
+              onPointerDown={(event) => handlePointerDown(event, node)}
+              style={{ cursor: readOnly || node.locked ? "default" : "grab" }}
+            >
+              <rect
+                fill={categoryFill(node.category)}
+                height={node.height}
+                rx="26"
+                stroke={node.locked ? "#3dd5cf" : "#40506d"}
+                strokeWidth={node.locked ? 3 : 2}
+                width={node.width}
+                x={node.x}
+                y={node.y}
+              />
+              <rect
+                fill="rgba(255,255,255,0.04)"
+                height="62"
+                rx="18"
+                stroke="rgba(255,255,255,0.06)"
+                width="62"
+                x={node.x + 16}
+                y={node.y + 17}
+              />
+              <image
+                height="36"
+                href={node.image}
+                width="36"
+                x={node.x + 29}
+                y={node.y + 30}
+              />
+              <text
+                fill="#f8fafc"
+                fontFamily="Manrope, sans-serif"
+                fontSize="17"
+                fontWeight="700"
+                x={node.x + 92}
+                y={node.y + 42}
+              >
+                {node.title}
+              </text>
+              <text
+                fill="#9fb0cb"
+                fontFamily="'IBM Plex Mono', monospace"
+                fontSize="13"
+                x={node.x + 92}
+                y={node.y + 72}
+              >
+                {node.subtitle}
+              </text>
+            </g>
+          ))}
+        </svg>
+      </div>
+
+      {showLegend ? (
+        <div className="board-legend">
+          {nodes
+            .filter((node) => node.id !== "users")
+            .map((node) => (
+              <div className="legend-chip" key={node.id}>
+                <img
+                  alt={node.title}
+                  className="legend-chip-image"
+                  src={node.image}
+                />
+                <span>{node.title}</span>
+              </div>
+            ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}

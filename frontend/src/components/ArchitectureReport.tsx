@@ -1,0 +1,277 @@
+import { useDeferredValue, useState } from "react";
+import { VALUE_LABELS } from "../data/catalog";
+import type { ArchitectureResponse } from "../types";
+
+interface ArchitectureReportProps {
+  architecture: ArchitectureResponse;
+  onDelete?: () => void;
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+export function ArchitectureReport({
+  architecture,
+  onDelete,
+}: ArchitectureReportProps) {
+  const deferredArchitecture = useDeferredValue(architecture);
+  const [exportStatus, setExportStatus] = useState("");
+
+  async function handleCopyMermaid() {
+    await navigator.clipboard.writeText(deferredArchitecture.mermaid);
+    setExportStatus("Mermaid copied to clipboard.");
+  }
+
+  function handleDownloadJson() {
+    const blob = new Blob([JSON.stringify(deferredArchitecture, null, 2)], {
+      type: "application/json",
+    });
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = `${deferredArchitecture.cloud}-enterprise-architecture.json`;
+    anchor.click();
+    URL.revokeObjectURL(objectUrl);
+    setExportStatus("Architecture JSON downloaded.");
+  }
+
+  return (
+    <div className="page-stack">
+      <section className="card report-hero">
+        <div className="summary-head">
+          <div>
+            <p className="eyebrow">Architecture Pack</p>
+            <h2>{deferredArchitecture.title}</h2>
+            <p className="summary-text">{deferredArchitecture.summary}</p>
+          </div>
+          <div className="report-side">
+            <span className="cloud-pill">
+              {deferredArchitecture.cloud.toUpperCase()}
+            </span>
+            <small>Updated {formatDate(deferredArchitecture.created_at)}</small>
+          </div>
+        </div>
+
+        <div className="pill-row">
+          {deferredArchitecture.priorities.map((priority) => (
+            <span className="priority-pill" key={priority}>
+              {VALUE_LABELS[priority] ?? priority}
+            </span>
+          ))}
+        </div>
+
+        <div className="pill-row">
+          <span className="profile-pill">
+            {VALUE_LABELS[deferredArchitecture.preferences.availability_tier]}
+          </span>
+          <span className="profile-pill">
+            {VALUE_LABELS[deferredArchitecture.preferences.network_exposure]}
+          </span>
+          <span className="profile-pill">
+            {VALUE_LABELS[deferredArchitecture.preferences.user_scale]}
+          </span>
+          <span className="profile-pill">
+            {VALUE_LABELS[deferredArchitecture.preferences.tenancy]}
+          </span>
+        </div>
+
+        <div className="action-row">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={handleCopyMermaid}
+          >
+            Copy Mermaid
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={handleDownloadJson}
+          >
+            Download JSON
+          </button>
+          {onDelete ? (
+            <button type="button" className="ghost-button" onClick={onDelete}>
+              Remove Project
+            </button>
+          ) : null}
+        </div>
+
+        {exportStatus ? <p className="context-note">{exportStatus}</p> : null}
+      </section>
+
+      <section className="report-grid">
+        <article className="card profile-card">
+          <div className="section-heading">
+            <p className="eyebrow">Profile</p>
+            <h2>Workload posture</h2>
+          </div>
+          <div className="definition-list">
+            <div>
+              <span>Environments</span>
+              <strong>
+                {deferredArchitecture.preferences.environments.join(", ")}
+              </strong>
+            </div>
+            <div>
+              <span>Compliance</span>
+              <strong>
+                {deferredArchitecture.preferences.compliance_frameworks.length > 0
+                  ? deferredArchitecture.preferences.compliance_frameworks
+                      .map((item) => VALUE_LABELS[item] ?? item)
+                      .join(", ")
+                  : "None selected"}
+              </strong>
+            </div>
+            <div>
+              <span>Data sensitivity</span>
+              <strong>
+                {VALUE_LABELS[deferredArchitecture.preferences.data_sensitivity]}
+              </strong>
+            </div>
+            <div>
+              <span>Regional strategy</span>
+              <strong>
+                {deferredArchitecture.preferences.multi_region
+                  ? "Multi-region"
+                  : "Single region"}
+              </strong>
+            </div>
+          </div>
+        </article>
+
+        <article className="card profile-card">
+          <div className="section-heading">
+            <p className="eyebrow">Highlights</p>
+            <h2>Topology summary</h2>
+          </div>
+          <ul className="detail-list">
+            {deferredArchitecture.topology_highlights.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </article>
+      </section>
+
+      <section className="card">
+        <div className="section-heading">
+          <p className="eyebrow">Mapped Services</p>
+          <h2>Cloud components</h2>
+        </div>
+        <div className="service-grid">
+          {deferredArchitecture.services.map((service) => (
+            <article key={service.id} className="service-card">
+              <span className={`service-category ${service.category}`}>
+                {service.category}
+              </span>
+              <h3>{service.cloud_service}</h3>
+              <p className="service-label">{service.label}</p>
+              <p>{service.rationale}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="card">
+        <div className="section-heading">
+          <p className="eyebrow">Narrative</p>
+          <h2>Architect notes</h2>
+        </div>
+        <div className="content-stack">
+          {deferredArchitecture.explanation_sections.map((section) => (
+            <article key={section.title} className="narrative-block">
+              <h3>{section.title}</h3>
+              <p>{section.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="card split-card enterprise-split">
+        <div>
+          <div className="section-heading">
+            <p className="eyebrow">Security</p>
+            <h2>Control posture</h2>
+          </div>
+          <ul className="detail-list">
+            {deferredArchitecture.security_controls.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <div className="section-heading">
+            <p className="eyebrow">Resilience</p>
+            <h2>Continuity notes</h2>
+          </div>
+          <ul className="detail-list">
+            {deferredArchitecture.resilience_notes.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section className="card split-card enterprise-split">
+        <div>
+          <div className="section-heading">
+            <p className="eyebrow">Operations</p>
+            <h2>Operating model</h2>
+          </div>
+          <ul className="detail-list">
+            {deferredArchitecture.operational_controls.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <div className="section-heading">
+            <p className="eyebrow">Risk Review</p>
+            <h2>Architecture risks</h2>
+          </div>
+          <ul className="detail-list">
+            {deferredArchitecture.risk_flags.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section className="card split-card enterprise-split">
+        <div>
+          <div className="section-heading">
+            <p className="eyebrow">Assumptions</p>
+            <h2>Inferred decisions</h2>
+          </div>
+          <ul className="detail-list">
+            {deferredArchitecture.assumptions.map((assumption) => (
+              <li key={assumption}>{assumption}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <div className="section-heading">
+            <p className="eyebrow">Next Steps</p>
+            <h2>Production hardening path</h2>
+          </div>
+          <ul className="detail-list">
+            {deferredArchitecture.recommended_next_steps.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+    </div>
+  );
+}
