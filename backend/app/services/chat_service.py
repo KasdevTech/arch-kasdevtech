@@ -17,8 +17,16 @@ from app.services.prompt_templates import CHAT_ASSISTANT_SYSTEM_PROMPT
 class ChatArchitectService:
     QUICK_REPLIES = {
         "hi": "Hi. Tell me what you want to build, or ask me an architecture question.",
-        "hello": "Hello. Tell me what you want to build, or ask me an architecture question.",
+        "hello": "Hi. Tell me what you want to build, or ask me an architecture question.",
         "hey": "Hey. Tell me what you want to build, or ask me an architecture question.",
+        "how are you": "I’m doing well and ready to help. Tell me what you want to build, or ask me an architecture question.",
+        "how are you?": "I’m doing well and ready to help. Tell me what you want to build, or ask me an architecture question.",
+        "thanks": "You’re welcome. Tell me what you want to build next, or ask me an architecture question.",
+        "thank you": "You’re welcome. Tell me what you want to build next, or ask me an architecture question.",
+        "ok": "Alright. Tell me what you want to build, and I’ll help shape the architecture.",
+        "okay": "Alright. Tell me what you want to build, and I’ll help shape the architecture.",
+        "cool": "Nice. Tell me what you want to build, or ask me an architecture question.",
+        "great": "Great. Tell me what you want to build, or ask me an architecture question.",
     }
 
     GENERATION_HINTS = [
@@ -85,28 +93,8 @@ class ChatArchitectService:
 
         priorities = ", ".join(architecture.priorities[:3]) or "security and resilience"
         highlights = ", ".join(service.cloud_service for service in architecture.services[:4])
-        try:
-            llm_summary = self._reply_with_llm(
-                payload.messages
-                + [
-                    ChatMessage(
-                        role=ChatRole.assistant,
-                        content=(
-                            "Architecture generated. Summarize it naturally for the user in 2-3 short sentences. "
-                            f"Cloud: {architecture.cloud.value}. "
-                            f"Domain: {architecture.domain.value}. "
-                            f"Archetype: {architecture.archetype.value}. "
-                            f"Highlights: {highlights}. "
-                            f"Priorities: {', '.join(architecture.priorities[:3])}."
-                        ),
-                    )
-                ],
-                payload.cloud.value,
-            )
-        except Exception:
-            llm_summary = None
         return ArchitectChatResponse(
-            reply=llm_summary or (
+            reply=(
                 f"I generated a {architecture.cloud.value.upper()} {architecture.domain.value.replace('_', ' ')} "
                 f"architecture using the {architecture.archetype.value.replace('_', ' ')} pattern. "
                 f"It is optimized for {priorities}, and the initial service backbone includes {highlights}."
@@ -132,6 +120,20 @@ class ChatArchitectService:
     def _is_ready_to_generate(self, transcript: str, latest_user_message: str) -> bool:
         lowered_transcript = transcript.lower()
         lowered_latest = latest_user_message.lower()
+
+        if self._looks_like_question(lowered_latest) and not any(
+            phrase in lowered_latest
+            for phrase in [
+                "design ",
+                "build ",
+                "generate ",
+                "create ",
+                "show me an architecture",
+                "give me an architecture",
+            ]
+        ):
+            return False
+
         matched_hints = sum(
             1 for keyword in self.GENERATION_HINTS if keyword in lowered_transcript
         )
@@ -211,6 +213,29 @@ class ChatArchitectService:
         if not normalized:
             return "Tell me what you want to build, and I’ll help shape the architecture."
         return self.QUICK_REPLIES.get(normalized)
+
+    def _looks_like_question(self, lowered_message: str) -> bool:
+        if "?" in lowered_message:
+            return True
+        return lowered_message.startswith(
+            (
+                "what ",
+                "why ",
+                "when ",
+                "which ",
+                "who ",
+                "where ",
+                "how ",
+                "should ",
+                "can ",
+                "could ",
+                "would ",
+                "is ",
+                "are ",
+                "do ",
+                "does ",
+            )
+        )
 
 
 chat_architect_service = ChatArchitectService()

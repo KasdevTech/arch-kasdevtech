@@ -46,6 +46,32 @@ type PersistedChatSession = {
   preferences: ArchitecturePreferences;
 };
 
+function quickLocalReply(content: string) {
+  const normalized = content.trim().toLowerCase();
+  if (!normalized) {
+    return "Tell me what you want to build, and I’ll help shape the architecture.";
+  }
+  if (["hi", "hello", "hey", "i"].includes(normalized)) {
+    return "Hi. Tell me what you want to build, or ask me an architecture question.";
+  }
+  if (["how are you", "how are you?"].includes(normalized)) {
+    return "I’m doing well and ready to help. Tell me what you want to build, or ask me an architecture question.";
+  }
+  if (["thanks", "thank you"].includes(normalized)) {
+    return "You’re welcome. Tell me what you want to build next, or ask me an architecture question.";
+  }
+  if (["ok", "okay"].includes(normalized)) {
+    return "Alright. Tell me what you want to build, and I’ll help shape the architecture.";
+  }
+  if (["cool", "great"].includes(normalized)) {
+    return "Nice. Tell me what you want to build, or ask me an architecture question.";
+  }
+  if (normalized.length < 3) {
+    return "Tell me a bit more about what you want to build, and I’ll help shape it.";
+  }
+  return null;
+}
+
 export function ArchitectChatWidget() {
   const { saveProject } = useArchitectureStore();
   const [isOpen, setIsOpen] = useState(false);
@@ -144,9 +170,22 @@ export function ArchitectChatWidget() {
     const nextMessages = [...messages, { role: "user" as const, content }];
     setMessages(nextMessages);
     setDraft("");
-    setLoading(true);
     setError("");
     setIsOpen(true);
+
+    const localReply = quickLocalReply(content);
+    if (localReply) {
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content: localReply,
+        },
+      ]);
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const response = await chatWithArchitect({
