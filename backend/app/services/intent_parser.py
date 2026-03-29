@@ -134,6 +134,12 @@ class IntentParser:
     }
 
     def parse(self, request: ArchitectureRequest) -> ArchitectureIntent:
+        if settings.intent_backend == "llm_service":
+            try:
+                return self._parse_with_llm_service(request)
+            except Exception:
+                pass
+
         if settings.intent_backend == "openai":
             try:
                 return self._parse_with_openai(request)
@@ -208,15 +214,45 @@ class IntentParser:
         if not settings.openai_api_key:
             raise RuntimeError("OPENAI_API_KEY is not configured.")
 
+        return self._parse_with_chat_completion(
+            request=request,
+            api_key=settings.openai_api_key,
+            model=settings.openai_model,
+        )
+
+    def _parse_with_llm_service(self, request: ArchitectureRequest) -> ArchitectureIntent:
+        if not settings.llm_service_base_url:
+            raise RuntimeError("AI_ARCHITECT_LLM_BASE_URL is not configured.")
+
+        return self._parse_with_chat_completion(
+            request=request,
+            api_key=settings.llm_service_api_key or "local-service",
+            model=settings.llm_service_model or "local-model",
+            base_url=settings.llm_service_base_url,
+        )
+
+    def _parse_with_chat_completion(
+        self,
+        request: ArchitectureRequest,
+        api_key: str,
+        model: str,
+        base_url: str | None = None,
+    ) -> ArchitectureIntent:
+        if not api_key:
+            raise RuntimeError("API key is not configured.")
+
         try:
             from openai import OpenAI
         except ImportError as exc:
             raise RuntimeError("openai package is not installed.") from exc
 
         preferences = self._normalize_preferences(request.preferences)
-        client = OpenAI(api_key=settings.openai_api_key)
+        client = OpenAI(
+            api_key=api_key,
+            base_url=base_url,
+        )
         response = client.chat.completions.create(
-            model=settings.openai_model,
+            model=model,
             temperature=0.2,
             response_format={"type": "json_object"},
             messages=[
@@ -234,10 +270,29 @@ class IntentParser:
 
         content = response.choices[0].message.content or "{}"
         payload = json.loads(content)
+        return self._intent_from_payload(payload, request, preferences)
+
+    def _intent_from_payload(
+        self,
+        payload: dict,
+        request: ArchitectureRequest,
+        preferences: ArchitecturePreferences,
+    ) -> ArchitectureIntent:
+        lowered_prompt = request.prompt.lower()
 
         raw_components = payload.get("components", [])
-        components = [self._component_from_payload(item) for item in raw_components]
-        components = self._add_derived_components(components, request.prompt.lower(), preferences)
+        components = [
+            component
+            for item in raw_components
+            if isinstance(item, dict)
+            for component in [self._safe_component_from_payload(item)]
+            if component is not None
+        ]
+
+        if not components:
+            components = self._parse_heuristically(request).components
+
+        components = self._add_derived_components(components, lowered_prompt, preferences)
 
         return ArchitectureIntent(
             title=payload.get("title") or self._build_title(request.prompt, request.cloud, preferences),
@@ -246,11 +301,11 @@ class IntentParser:
             cloud=request.cloud,
             preferences=preferences,
             priorities=self._normalize_strings(payload.get("priorities"))
-            or self._extract_priorities(request.prompt.lower(), preferences),
+            or self._extract_priorities(lowered_prompt, preferences),
             patterns=self._normalize_strings(payload.get("patterns"))
-            or self._extract_patterns(request.prompt.lower(), components, preferences),
+            or self._extract_patterns(lowered_prompt, components, preferences),
             assumptions=self._normalize_strings(payload.get("assumptions"))
-            or self._build_assumptions(request.prompt.lower(), components, request.cloud, preferences),
+            or self._build_assumptions(lowered_prompt, components, request.cloud, preferences),
             components=components,
         )
 
@@ -276,6 +331,12 @@ class IntentParser:
             requirements=self._normalize_strings(payload.get("requirements")),
             database_kind=DatabaseKind(database_kind) if database_kind else None,
         )
+
+    def _safe_component_from_payload(self, payload: dict) -> ParsedComponent | None:
+        try:
+            return self._component_from_payload(payload)
+        except Exception:
+            return None
 
     def _normalize_strings(self, value: object) -> list[str]:
         if not isinstance(value, list):

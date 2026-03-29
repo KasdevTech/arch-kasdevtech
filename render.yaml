@@ -12,6 +12,14 @@ services:
         value: 3.13.5
       - key: AI_ARCHITECT_CORS_ORIGINS
         value: https://arch-kasdevtech-frontend.onrender.com
+      - key: AI_ARCHITECT_INTENT_BACKEND
+        value: llm_service
+      - key: AI_ARCHITECT_LLM_BASE_URL
+        value: https://kasdevtech-llm.onrender.com/v1
+      - key: AI_ARCHITECT_LLM_API_KEY
+        value: local-service
+      - key: AI_ARCHITECT_LLM_MODEL
+        value: qwen2.5-0.5b
 
   - type: web
     name: arch-kasdevtech-frontend

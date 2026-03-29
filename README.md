@@ -6,7 +6,7 @@ A full-stack MVP that turns a plain-English product idea into a cloud architectu
 
 - Natural-language architecture intake
 - Enterprise workload profile intake for availability, compliance, tenancy, network exposure, and environment strategy
-- Deterministic intent parsing with optional OpenAI-backed parsing
+- Deterministic intent parsing with optional OpenAI-backed or OpenAI-compatible LLM parsing
 - Multi-cloud mapping for Azure, AWS, and GCP
 - Native SVG architecture canvas with cloud imagery
 - Architecture explanation and next-step guidance
@@ -76,7 +76,11 @@ cp frontend/.env.example frontend/.env
 
 - `AI_ARCHITECT_INTENT_BACKEND=heuristic` uses the built-in parser
 - `AI_ARCHITECT_INTENT_BACKEND=openai` enables OpenAI parsing when `OPENAI_API_KEY` is set
+- `AI_ARCHITECT_INTENT_BACKEND=llm_service` enables your OpenAI-compatible hosted LLM
 - `AI_ARCHITECT_OPENAI_MODEL=gpt-4.1-mini`
+- `AI_ARCHITECT_LLM_BASE_URL=https://kasdevtech-llm.onrender.com/v1`
+- `AI_ARCHITECT_LLM_API_KEY=local-service`
+- `AI_ARCHITECT_LLM_MODEL=qwen2.5-0.5b`
 - `AI_ARCHITECT_CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173`
 
 ### Frontend
@@ -100,7 +104,7 @@ curl -X POST http://localhost:8000/api/v1/architectures/generate \
 - The MVP is intentionally deterministic after intent parsing so service mapping stays stable.
 - The current UI supports enterprise-oriented inputs such as compliance targets, multi-region posture, DR, tenancy, and data sensitivity.
 - The Terraform output is a starter scaffold, not production-ready infrastructure.
-- The backend falls back to heuristic parsing automatically if OpenAI is unavailable or returns invalid JSON.
+- The backend falls back to heuristic parsing automatically if the selected LLM backend is unavailable or returns invalid JSON.
 
 ## Deployment
 
