@@ -73,6 +73,7 @@ class ChatArchitectService:
     def _preflight_decision(self, payload: ArchitectChatRequest) -> dict[str, Any] | None:
         latest = self._latest_user_message(payload.messages)
         normalized = latest.strip().lower()
+        transcript = self._conversation_prompt(payload.messages)
 
         quick_reply = self._quick_reply(normalized)
         if quick_reply:
@@ -87,6 +88,13 @@ class ChatArchitectService:
                 "mode": "clarify",
                 "reply": "I didn’t quite catch that. Rephrase your question or describe the system you want to design.",
                 "architecture_prompt": None,
+            }
+
+        if self._is_ready_to_generate(transcript, latest):
+            return {
+                "mode": "generate",
+                "reply": "",
+                "architecture_prompt": transcript,
             }
 
         return None
