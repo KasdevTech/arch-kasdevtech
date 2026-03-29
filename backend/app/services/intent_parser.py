@@ -447,6 +447,9 @@ class IntentParser:
     }
 
     def parse(self, request: ArchitectureRequest) -> ArchitectureIntent:
+        if self._should_fast_path(request.prompt):
+            return self._parse_heuristically(request)
+
         if settings.intent_backend == "llm_service":
             try:
                 return self._parse_with_llm_service(request)
@@ -460,6 +463,85 @@ class IntentParser:
                 pass
 
         return self._parse_heuristically(request)
+
+    def _should_fast_path(self, prompt: str) -> bool:
+        lowered = prompt.lower()
+
+        if any(
+            phrase in lowered
+            for phrase in [
+                "three tier",
+                "3 tier",
+                "three-tier",
+                "starter app",
+                "sample app",
+                "sample architecture",
+            ]
+        ):
+            return True
+
+        if any(
+            marker in lowered
+            for marker in [
+                "azure ai",
+                "azure openai",
+                "purview",
+                "resource graph",
+                "sentinel",
+                "siem",
+                "soc",
+                "rag",
+                "copilot",
+                "machine learning",
+                "ml platform",
+                "data lake",
+                "warehouse",
+                "streaming",
+                "etl",
+                "elt",
+                "developer portal",
+                "internal developer platform",
+            ]
+        ):
+            return False
+
+        matched_hints = sum(
+            1
+            for keyword in [
+                "frontend",
+                "backend",
+                "api",
+                "database",
+                "auth",
+                "authentication",
+                "cdn",
+                "cache",
+                "queue",
+                "microservices",
+                "payments",
+                "payment",
+                "ci/cd",
+                "cicd",
+                "pipeline",
+                "waf",
+                "monitoring",
+                "observability",
+                "web app",
+                "saas",
+                "e-commerce",
+                "ecommerce",
+                "portal",
+            ]
+            if keyword in lowered
+        )
+
+        if matched_hints >= 3 and any(
+            keyword in lowered
+            for keyword in ["design", "build", "architecture", "app", "application", "platform", "system"]
+        ):
+            return True
+
+        return False
 
     def _parse_heuristically(self, request: ArchitectureRequest) -> ArchitectureIntent:
         lowered = request.prompt.lower()
