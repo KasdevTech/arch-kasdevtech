@@ -562,6 +562,37 @@ button {
   color: var(--text);
 }
 
+.chat-architecture {
+  display: grid;
+  gap: 16px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.chat-architecture-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.chat-architecture-head strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.chat-architecture-head span {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.chat-architecture .board-shell {
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
 .chat-bubble.assistant {
   background: rgba(255, 255, 255, 0.035);
 }
@@ -1141,6 +1172,10 @@ textarea:focus {
 
   .chat-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .chat-architecture-head {
+    flex-direction: column;
   }
 }
 

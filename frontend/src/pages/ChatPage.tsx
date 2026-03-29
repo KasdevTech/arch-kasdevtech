@@ -4,11 +4,16 @@ import { chatWithArchitect } from "../api";
 import { ArchitectureBoard } from "../components/ArchitectureBoard";
 import { useArchitectureStore } from "../context/ArchitectureStore";
 import type {
-  ArchitectChatMessage,
   ArchitecturePreferences,
   ArchitectureResponse,
   CloudProvider,
 } from "../types";
+
+type ChatEntry = {
+  role: "user" | "assistant";
+  content: string;
+  architecture?: ArchitectureResponse | null;
+};
 
 const DEFAULT_PREFERENCES: ArchitecturePreferences = {
   workload_name: null,
@@ -23,7 +28,7 @@ const DEFAULT_PREFERENCES: ArchitecturePreferences = {
   tenancy: "pooled_multi_tenant",
 };
 
-const STARTER_MESSAGES: ArchitectChatMessage[] = [
+const STARTER_MESSAGES: ChatEntry[] = [
   {
     role: "assistant",
     content:
@@ -33,7 +38,7 @@ const STARTER_MESSAGES: ArchitectChatMessage[] = [
 
 export function ChatPage() {
   const { saveProject } = useArchitectureStore();
-  const [messages, setMessages] = useState<ArchitectChatMessage[]>(STARTER_MESSAGES);
+  const [messages, setMessages] = useState<ChatEntry[]>(STARTER_MESSAGES);
   const [draft, setDraft] = useState("");
   const [cloud, setCloud] = useState<CloudProvider>("azure");
   const [includeIac, setIncludeIac] = useState(true);
@@ -41,9 +46,6 @@ export function ChatPage() {
     useState<ArchitecturePreferences>(DEFAULT_PREFERENCES);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [latestArchitecture, setLatestArchitecture] =
-    useState<ArchitectureResponse | null>(null);
-
   const conversationMessages = useMemo(
     () => messages.filter((message) => message.role === "user").length,
     [messages],
@@ -89,12 +91,12 @@ export function ChatPage() {
         });
       }
 
-      setLatestArchitecture(persistedArchitecture);
       setMessages((current) => [
         ...current,
         {
           role: "assistant",
           content: response.reply,
+          architecture: persistedArchitecture,
         },
       ]);
     } catch (submitError) {
@@ -107,6 +109,11 @@ export function ChatPage() {
       setLoading(false);
     }
   }
+
+  const latestArchitecture =
+    [...messages]
+      .reverse()
+      .find((message) => message.architecture)?.architecture ?? null;
 
   return (
     <div className="studio-grid">
@@ -168,6 +175,35 @@ export function ChatPage() {
                 {message.role === "assistant" ? "Architect" : "You"}
               </span>
               <p>{message.content}</p>
+              {message.architecture ? (
+                <div className="chat-architecture">
+                  <div className="chat-architecture-head">
+                    <div>
+                      <strong>{message.architecture.title}</strong>
+                      <span>{message.architecture.summary}</span>
+                    </div>
+                    <div className="action-row">
+                      <Link
+                        className="button-link secondary"
+                        to={`/app/projects/${message.architecture.request_id}/overview`}
+                      >
+                        Open project
+                      </Link>
+                      <Link
+                        className="button-link secondary"
+                        to={`/app/projects/${message.architecture.request_id}/architecture`}
+                      >
+                        Open architecture
+                      </Link>
+                    </div>
+                  </div>
+                  <ArchitectureBoard
+                    architecture={message.architecture}
+                    readOnly
+                    showConnectionLabels={false}
+                  />
+                </div>
+              ) : null}
             </article>
           ))}
         </div>
@@ -205,8 +241,8 @@ export function ChatPage() {
           <ul className="detail-list">
             <li>Chat through the product idea, integrations, scale, and compliance needs.</li>
             <li>The assistant uses the conversation context, not just the last sentence.</li>
-            <li>When the request is concrete enough, it generates a full architecture automatically.</li>
-            <li>The generated architecture is saved into your project library for editing and export.</li>
+            <li>When the request is concrete enough, it generates the diagram directly in the chat.</li>
+            <li>The same generated architecture is also saved into your project library for editing and export.</li>
           </ul>
         </section>
 
@@ -241,13 +277,13 @@ export function ChatPage() {
           <section className="card panel">
             <div className="section-heading">
               <p className="eyebrow">Generated Output</p>
-              <h2>Your architecture will appear here</h2>
+              <h2>The latest generated architecture also stays pinned here</h2>
             </div>
             <div className="empty-state subtle">
               <p>Start the conversation with a real workload idea.</p>
               <span>
                 Once the request has enough context, the assistant will generate
-                and save a project automatically.
+                inside the chat and save a project automatically.
               </span>
             </div>
           </section>
