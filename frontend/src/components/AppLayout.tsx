@@ -36,76 +36,99 @@ export function AppLayout() {
   return (
     <div className="product-shell">
       <aside className="sidebar">
-        <Link className="sidebar-brand" to="/">
-          <span className="brand-mark">KA</span>
-          <div>
-            <strong>KasdevTech AI Architect</strong>
-            <small>Enterprise Architecture SaaS</small>
+        <div className="sidebar-stack">
+          <Link className="sidebar-brand" to="/">
+            <span className="brand-mark">KA</span>
+            <div>
+              <strong>KasdevTech AI Architect</strong>
+              <small>Enterprise Architecture Platform</small>
+            </div>
+          </Link>
+
+          <div className="sidebar-summary">
+            <span className="sidebar-badge">Workspace active</span>
+            <h2>Design cloud systems with a cleaner operating flow.</h2>
+            <p>
+              Move from brief to architecture, then into implementation-ready
+              outputs without losing the context of the workload.
+            </p>
           </div>
-        </Link>
 
-        <nav className="sidebar-nav">
-          <NavLink
-            className={({ isActive }) =>
-              isActive ? "sidebar-link active" : "sidebar-link"
-            }
-            to="/app/studio"
-          >
-            <span>New Architecture</span>
-            <small>Create a fresh architecture brief</small>
-          </NavLink>
-          <NavLink
-            className={({ isActive }) =>
-              isActive ? "sidebar-link active" : "sidebar-link"
-            }
-            to="/app/projects"
-          >
-            <span>Projects</span>
-            <small>Open saved architecture reports</small>
-          </NavLink>
-        </nav>
+          <nav className="sidebar-nav">
+            <NavLink
+              className={({ isActive }) =>
+                isActive ? "sidebar-link active" : "sidebar-link"
+              }
+              to="/app/studio"
+            >
+              <span>Architecture Studio</span>
+              <small>Create or edit a workload brief</small>
+            </NavLink>
+            <NavLink
+              className={({ isActive }) =>
+                isActive ? "sidebar-link active" : "sidebar-link"
+              }
+              to="/app/projects"
+            >
+              <span>Projects Library</span>
+              <small>Reopen saved workspaces and reports</small>
+            </NavLink>
+          </nav>
 
-        <div className="sidebar-panel">
-          <p className="eyebrow">Workspace</p>
-          <h3>{projects.length}</h3>
-          <p>Saved architecture packs available across your local workspace.</p>
-        </div>
+          <div className="sidebar-metrics">
+            <article className="sidebar-panel">
+              <p className="eyebrow">Projects</p>
+              <h3>{projects.length}</h3>
+              <p>Saved architecture workspaces in your current environment.</p>
+            </article>
+            <article className="sidebar-panel subtle-panel">
+              <p className="eyebrow">Regulated</p>
+              <h3>{regulatedProjects}</h3>
+              <p>Projects carrying one or more compliance frameworks.</p>
+            </article>
+            <article className="sidebar-panel subtle-panel">
+              <p className="eyebrow">Multi-region</p>
+              <h3>{multiRegionProjects}</h3>
+              <p>Architectures designed with broader resilience posture.</p>
+            </article>
+          </div>
 
-        <div className="sidebar-panel subtle-panel">
-          <p className="eyebrow">Portfolio Signals</p>
-          <ul className="mini-list">
-            <li>{regulatedProjects} compliance-targeted projects</li>
-            <li>{multiRegionProjects} multi-region designs</li>
-            <li>{projects.filter((project) => project.iac_template).length} IaC-enabled packs</li>
-          </ul>
-        </div>
-
-        <div className="sidebar-panel subtle-panel">
-          <p className="eyebrow">Product Loop</p>
-          <ul className="mini-list">
-            <li>Brief the workload</li>
-            <li>Generate architecture</li>
-            <li>Review risks and controls</li>
-            <li>Iterate toward delivery</li>
-          </ul>
+          <div className="sidebar-panel subtle-panel">
+            <p className="eyebrow">Coverage</p>
+            <ul className="mini-list">
+              <li>Dedicated overview, architecture, and code pages</li>
+              <li>{projects.filter((project) => project.iac_template).length} IaC-enabled packs</li>
+              <li>Editable architecture canvas and export flow</li>
+            </ul>
+          </div>
         </div>
       </aside>
 
       <div className="workspace-shell">
         <header className="topbar">
-          <div>
+          <div className="topbar-copy-block">
             <p className="eyebrow">Enterprise Workspace</p>
             <h1>{currentPage.title}</h1>
             <p className="topbar-copy">{currentPage.subtitle}</p>
           </div>
 
-          <div className="topbar-actions">
-            <Link className="button-link secondary" to="/app/projects">
-              Open Library
-            </Link>
-            <Link className="button-link primary" to="/app/studio">
-              New Architecture
-            </Link>
+          <div className="topbar-right">
+            <div className="topbar-signals">
+              <span className="trust-chip">Local workspace</span>
+              <span className="trust-chip">{projects.length} saved projects</span>
+              <span className="trust-chip">
+                {projects.filter((project) => project.iac_template).length} code-ready
+              </span>
+            </div>
+
+            <div className="topbar-actions">
+              <Link className="button-link secondary" to="/app/projects">
+                Open Library
+              </Link>
+              <Link className="button-link primary" to="/app/studio">
+                New Architecture
+              </Link>
+            </div>
           </div>
         </header>
 

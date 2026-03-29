@@ -229,7 +229,9 @@ button {
 .chip-row,
 .toggle-grid,
 .quick-prompts,
-.pill-row {
+.pill-row,
+.trust-strip,
+.topbar-signals {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -237,7 +239,7 @@ button {
 
 .hero-section {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 420px);
+  grid-template-columns: minmax(0, 1.05fr) minmax(420px, 1fr);
   gap: 24px;
   align-items: stretch;
   margin-bottom: 28px;
@@ -245,10 +247,67 @@ button {
 
 .hero-copy h1 {
   margin: 10px 0 14px;
-  max-width: 12ch;
-  font-size: clamp(3.2rem, 6vw, 5.8rem);
-  line-height: 0.94;
+  max-width: 11ch;
+  font-size: clamp(3.1rem, 5.4vw, 5.2rem);
+  line-height: 0.96;
   letter-spacing: -0.05em;
+}
+
+.hero-preview,
+.sidebar-stack,
+.sidebar-metrics,
+.topbar-right {
+  display: grid;
+  gap: 18px;
+}
+
+.hero-preview .board-shell {
+  min-height: 100%;
+}
+
+.trust-strip {
+  margin-top: 22px;
+}
+
+.trust-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.035);
+  color: #d6e3f8;
+  font-size: 0.88rem;
+  line-height: 1;
+}
+
+.hero-panel-head,
+.sidebar-summary h2 {
+  margin: 0;
+}
+
+.hero-panel-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.hero-status,
+.sidebar-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(45, 212, 191, 0.12);
+  border: 1px solid rgba(45, 212, 191, 0.18);
+  color: #b5fff6;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .hero-panel,
@@ -341,7 +400,7 @@ button {
 }
 
 .product-shell {
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: 320px minmax(0, 1fr);
   min-height: 100vh;
   padding: 20px;
 }
@@ -350,7 +409,10 @@ button {
   position: sticky;
   top: 20px;
   align-self: start;
-  padding: 22px;
+  padding: 24px;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(11, 18, 32, 0.94)),
+    radial-gradient(circle at top, rgba(45, 212, 191, 0.1), transparent 40%);
 }
 
 .sidebar-nav,
@@ -370,11 +432,11 @@ button {
 .sidebar-link {
   display: grid;
   gap: 4px;
-  padding: 14px 16px;
-  border: 1px solid transparent;
+  padding: 16px 18px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
   border-radius: var(--radius-md);
-  color: var(--muted);
-  background: rgba(255, 255, 255, 0.02);
+  color: #a7b6ce;
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .sidebar-link span {
@@ -385,6 +447,27 @@ button {
 .sidebar-link.active {
   border-color: rgba(45, 212, 191, 0.28);
   background: rgba(45, 212, 191, 0.1);
+}
+
+.sidebar-summary {
+  display: grid;
+  gap: 12px;
+}
+
+.sidebar-summary h2 {
+  font-size: 1.7rem;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.sidebar-summary p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.sidebar-metrics {
+  grid-template-columns: 1fr;
 }
 
 .sidebar-panel {
@@ -410,21 +493,33 @@ button {
 
 .workspace-shell {
   min-width: 0;
-  padding: 4px 4px 32px;
+  padding: 8px 10px 32px;
 }
 
 .topbar {
   display: flex;
-  align-items: end;
+  align-items: start;
   justify-content: space-between;
   gap: 20px;
-  padding: 12px 8px 24px;
+  padding: 10px 8px 28px;
 }
 
 .topbar h1 {
   margin: 0 0 8px;
   font-size: clamp(2rem, 4vw, 3rem);
   letter-spacing: -0.04em;
+}
+
+.topbar-copy-block {
+  max-width: 720px;
+}
+
+.topbar-right {
+  justify-items: end;
+}
+
+.topbar-signals {
+  justify-content: end;
 }
 
 .studio-grid {
@@ -907,6 +1002,14 @@ textarea:focus {
   }
 
   .board-actions {
+    justify-content: start;
+  }
+
+  .topbar-right {
+    justify-items: start;
+  }
+
+  .topbar-signals {
     justify-content: start;
   }
 }
