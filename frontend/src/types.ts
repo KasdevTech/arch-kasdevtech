@@ -110,3 +110,23 @@ export interface ArchitectureResponse {
   source_request?: ArchitectureRequest;
   canvas_layout?: CanvasLayout;
 }
+
+export type ChatRole = "user" | "assistant";
+
+export interface ArchitectChatMessage {
+  role: ChatRole;
+  content: string;
+}
+
+export interface ArchitectChatRequest {
+  messages: ArchitectChatMessage[];
+  cloud: CloudProvider;
+  include_iac: boolean;
+  preferences: ArchitecturePreferences;
+}
+
+export interface ArchitectChatResponse {
+  reply: string;
+  generated_architecture?: ArchitectureResponse | null;
+  ready_to_generate: boolean;
+}

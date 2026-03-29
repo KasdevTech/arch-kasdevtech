@@ -1,4 +1,9 @@
-import type { ArchitectureRequest, ArchitectureResponse } from "./types";
+import type {
+  ArchitectChatRequest,
+  ArchitectChatResponse,
+  ArchitectureRequest,
+  ArchitectureResponse,
+} from "./types";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ?? "http://localhost:8000/api/v1";
@@ -23,3 +28,20 @@ export async function generateArchitecture(
   return response.json() as Promise<ArchitectureResponse>;
 }
 
+export async function chatWithArchitect(
+  payload: ArchitectChatRequest,
+): Promise<ArchitectChatResponse> {
+  const response = await fetch(`${API_BASE_URL}/architectures/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Architect chat failed with status ${response.status}.`);
+  }
+
+  return response.json() as Promise<ArchitectChatResponse>;
+}

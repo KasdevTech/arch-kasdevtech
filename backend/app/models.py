@@ -196,3 +196,26 @@ class ArchitectureResponse(BaseModel):
     recommended_next_steps: list[str]
     mermaid: str
     iac_template: Optional[str] = None
+
+
+class ChatRole(str, Enum):
+    user = "user"
+    assistant = "assistant"
+
+
+class ChatMessage(BaseModel):
+    role: ChatRole
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class ArchitectChatRequest(BaseModel):
+    messages: list[ChatMessage] = Field(min_length=1, max_length=30)
+    cloud: CloudProvider = CloudProvider.azure
+    include_iac: bool = False
+    preferences: ArchitecturePreferences = Field(default_factory=ArchitecturePreferences)
+
+
+class ArchitectChatResponse(BaseModel):
+    reply: str
+    generated_architecture: Optional[ArchitectureResponse] = None
+    ready_to_generate: bool = False

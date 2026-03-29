@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
 import { ArchitectureDetailPage } from "./pages/ArchitectureDetailPage";
+import { ChatPage } from "./pages/ChatPage";
 import { LandingPage } from "./pages/LandingPage";
 import { ProjectArchitecturePage } from "./pages/ProjectArchitecturePage";
 import { ProjectOverviewPage } from "./pages/ProjectOverviewPage";
@@ -15,6 +16,7 @@ function App() {
       <Route path="/app" element={<AppLayout />}>
         <Route index element={<Navigate to="/app/studio" replace />} />
         <Route path="studio" element={<StudioPage />} />
+        <Route path="chat" element={<ChatPage />} />
         <Route path="projects/:projectId/edit" element={<StudioPage />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="projects/:projectId" element={<ArchitectureDetailPage />}>
