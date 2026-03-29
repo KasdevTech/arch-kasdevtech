@@ -210,6 +210,15 @@ ARCHETYPE_OVERRIDES = {
             "integration": {"service": "Azure Data Factory", "category": "integration", "rationale": "Orchestrates pipelines, connectors, and batch movement across data systems."},
         },
     },
+    SolutionArchetype.transactional_saas: {
+        "azure": {
+            "backend_api": {"service": "Azure Container Apps", "category": "compute", "rationale": "Runs independently scalable application services and API workloads for modern transactional platforms."},
+            "integration": {"service": "Azure Logic Apps", "category": "integration", "rationale": "Supports payment processors, fulfillment integrations, and event-driven external workflows."},
+            "queue": {"service": "Azure Service Bus", "category": "messaging", "rationale": "Decouples orders, payments, inventory, and notification workflows with reliable asynchronous messaging."},
+            "cache": {"service": "Azure Cache for Redis", "category": "cache", "rationale": "Improves read latency and protects the transactional database during high traffic bursts."},
+            "cdn": {"service": "Azure Front Door", "category": "edge", "rationale": "Provides global entry, traffic acceleration, and edge routing for internet-scale commerce experiences."},
+        },
+    },
 }
 
 

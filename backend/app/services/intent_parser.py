@@ -26,6 +26,23 @@ from app.services.prompt_templates import INTENT_SYSTEM_PROMPT
 class IntentParser:
     DOMAIN_OVERRIDE_RULES = [
         (
+            SolutionDomain.web_saas,
+            [
+                "e-commerce",
+                "ecommerce",
+                "online store",
+                "shopping cart",
+                "checkout",
+                "payments",
+                "payment",
+                "catalog",
+                "orders",
+                "1m users",
+                "million users",
+                "global traffic",
+            ],
+        ),
+        (
             SolutionDomain.ai_governance,
             [
                 "data leakage",
@@ -175,6 +192,11 @@ class IntentParser:
             "frontend",
             "browser",
             "multi-tenant",
+            "e-commerce",
+            "ecommerce",
+            "checkout",
+            "orders",
+            "payments",
         ],
     }
 
@@ -347,6 +369,8 @@ class IntentParser:
             "orchestration",
             "b2b",
             "webhook",
+            "payment gateway",
+            "payments integration",
         ],
     }
 
@@ -751,6 +775,29 @@ class IntentParser:
             self._ensure_component(components, ComponentType.object_storage, lowered_prompt)
             self._ensure_component(components, ComponentType.analytics, lowered_prompt)
 
+        if domain == SolutionDomain.web_saas:
+            if any(keyword in lowered_prompt for keyword in ["global traffic", "global", "cdn", "worldwide"]):
+                self._ensure_component(components, ComponentType.cdn, lowered_prompt)
+            if any(
+                keyword in lowered_prompt
+                for keyword in [
+                    "1m users",
+                    "million users",
+                    "high scale",
+                    "high traffic",
+                    "scalable",
+                    "low latency",
+                    "e-commerce",
+                    "ecommerce",
+                ]
+            ):
+                self._ensure_component(components, ComponentType.cache, lowered_prompt)
+                self._ensure_component(components, ComponentType.queue, lowered_prompt)
+            if any(keyword in lowered_prompt for keyword in ["payment", "payments", "checkout", "order"]):
+                self._ensure_component(components, ComponentType.integration, lowered_prompt)
+            if any(keyword in lowered_prompt for keyword in ["microservice", "microservices"]):
+                self._ensure_component(components, ComponentType.backend_api, lowered_prompt)
+
         if (
             preferences.network_exposure != NetworkExposure.public
             or preferences.data_sensitivity != DataSensitivity.internal
@@ -844,6 +891,8 @@ class IntentParser:
 
         if ComponentType.backend_api in component_types:
             patterns.append("stateless_api")
+        if any(keyword in lowered_prompt for keyword in ["microservice", "microservices"]):
+            patterns.append("microservices")
         if ComponentType.cdn in component_types:
             patterns.append("edge_caching")
         if ComponentType.queue in component_types or "async" in lowered_prompt:
@@ -866,6 +915,12 @@ class IntentParser:
             patterns.append("environment_isolation")
         if "multi tenant" in lowered_prompt or "multi-tenant" in lowered_prompt:
             patterns.append("multi_tenant_saas")
+        if any(keyword in lowered_prompt for keyword in ["payment", "payments", "checkout"]):
+            patterns.append("isolated_payment_flows")
+        if any(keyword in lowered_prompt for keyword in ["global traffic", "global", "multi-region"]):
+            patterns.append("global_traffic_routing")
+        if any(keyword in lowered_prompt for keyword in ["ci/cd", "cicd", "pipeline", "deployment pipeline"]):
+            patterns.append("continuous_delivery")
 
         return self._dedupe(patterns)
 
@@ -937,6 +992,10 @@ class IntentParser:
             assumptions.append("Assuming the system must aggregate telemetry and convert signals into detections, findings, or remediation guidance.")
         if domain == SolutionDomain.ai_platform:
             assumptions.append("Assuming model access, retrieval, and application safety controls are first-class parts of the architecture.")
+        if domain == SolutionDomain.web_saas and any(
+            keyword in lowered_prompt for keyword in ["e-commerce", "ecommerce", "payment", "checkout", "orders"]
+        ):
+            assumptions.append("Assuming transactional integrity, payment isolation, and burst-tolerant order processing are core platform requirements.")
 
         return assumptions
 
