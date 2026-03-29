@@ -58,6 +58,10 @@ class ChatArchitectService:
         )
 
     def _route_conversation(self, payload: ArchitectChatRequest) -> dict[str, Any]:
+        preflight = self._preflight_decision(payload)
+        if preflight is not None:
+            return preflight
+
         try:
             routed = self._route_with_llm(payload)
             if routed:
@@ -65,6 +69,27 @@ class ChatArchitectService:
         except Exception:
             pass
         return self._fallback_decision(payload)
+
+    def _preflight_decision(self, payload: ArchitectChatRequest) -> dict[str, Any] | None:
+        latest = self._latest_user_message(payload.messages)
+        normalized = latest.strip().lower()
+
+        quick_reply = self._quick_reply(normalized)
+        if quick_reply:
+            return {
+                "mode": "reply",
+                "reply": quick_reply,
+                "architecture_prompt": None,
+            }
+
+        if self._is_garbled(normalized):
+            return {
+                "mode": "clarify",
+                "reply": "I didn’t quite catch that. Rephrase your question or describe the system you want to design.",
+                "architecture_prompt": None,
+            }
+
+        return None
 
     def _route_with_llm(self, payload: ArchitectChatRequest) -> dict[str, Any] | None:
         client, model = self._build_llm_client()
@@ -187,21 +212,6 @@ class ChatArchitectService:
     def _fallback_decision(self, payload: ArchitectChatRequest) -> dict[str, Any]:
         latest = self._latest_user_message(payload.messages)
         normalized = latest.strip().lower()
-
-        quick_reply = self._quick_reply(normalized)
-        if quick_reply:
-            return {
-                "mode": "reply",
-                "reply": quick_reply,
-                "architecture_prompt": None,
-            }
-
-        if self._is_garbled(normalized):
-            return {
-                "mode": "clarify",
-                "reply": "I didn’t quite catch that. Rephrase your question or describe the system you want to design.",
-                "architecture_prompt": None,
-            }
 
         if self._is_ready_to_generate(
             self._conversation_prompt(payload.messages),
@@ -428,6 +438,7 @@ class ChatArchitectService:
 
     def _is_garbled(self, lowered_message: str) -> bool:
         stripped = lowered_message.strip()
+        cleaned = re.sub(r"[^a-z]", "", stripped)
         if not stripped:
             return True
         letters = re.findall(r"[a-z]", stripped)
@@ -437,6 +448,18 @@ class ChatArchitectService:
             return True
         if re.fullmatch(r"[\W_]+", stripped):
             return True
+        if cleaned and " " not in stripped and len(cleaned) >= 7:
+            vowel_count = sum(1 for char in cleaned if char in "aeiou")
+            max_consonant_run = 0
+            current_run = 0
+            for char in cleaned:
+                if char in "aeiou":
+                    current_run = 0
+                else:
+                    current_run += 1
+                    max_consonant_run = max(max_consonant_run, current_run)
+            if vowel_count <= 2 or max_consonant_run >= 4:
+                return True
         return False
 
 
