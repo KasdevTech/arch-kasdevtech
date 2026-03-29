@@ -11,7 +11,9 @@ services:
       - key: PYTHON_VERSION
         value: 3.13.5
       - key: AI_ARCHITECT_CORS_ORIGINS
-        value: https://arch-kasdevtech-frontend.onrender.com
+        value: https://arch-kasdevtech-frontend.onrender.com,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174
+      - key: AI_ARCHITECT_CORS_ORIGIN_REGEX
+        value: https://.*\.onrender\.com|http://localhost:\d+|http://127\.0\.0\.1:\d+
       - key: AI_ARCHITECT_INTENT_BACKEND
         value: llm_service
       - key: AI_ARCHITECT_LLM_BASE_URL
