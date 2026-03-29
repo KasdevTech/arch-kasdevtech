@@ -32,7 +32,7 @@ def get_settings() -> Settings:
         app_version="0.1.0",
         api_prefix="/api/v1",
         cors_origins=origins,
-        cors_origin_regex=os.getenv("AI_ARCHITECT_CORS_ORIGIN_REGEX", "").strip(),
+        cors_origin_regex=os.getenv("AI_ARCHITECT_CORS_ORIGIN_REGEX", "https?://.*").strip(),
         intent_backend=os.getenv("AI_ARCHITECT_INTENT_BACKEND", "heuristic").strip().lower(),
         openai_api_key=os.getenv("OPENAI_API_KEY", "").strip(),
         openai_model=os.getenv("AI_ARCHITECT_OPENAI_MODEL", "gpt-4.1-mini").strip(),

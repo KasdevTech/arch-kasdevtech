@@ -82,7 +82,7 @@ cp frontend/.env.example frontend/.env
 - `AI_ARCHITECT_LLM_API_KEY=local-service`
 - `AI_ARCHITECT_LLM_MODEL=qwen2.5-0.5b`
 - `AI_ARCHITECT_CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173`
-- `AI_ARCHITECT_CORS_ORIGIN_REGEX=https://.*\\.onrender\\.com|http://localhost:\\d+|http://127\\.0\\.0\\.1:\\d+`
+- `AI_ARCHITECT_CORS_ORIGIN_REGEX=https?://.*`
 
 ### Frontend
 
