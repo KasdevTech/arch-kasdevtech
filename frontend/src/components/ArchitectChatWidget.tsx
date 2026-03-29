@@ -32,9 +32,15 @@ const STARTER_MESSAGES: ChatEntry[] = [
   {
     role: "assistant",
     content:
-      "Describe the system you want to build. I’ll turn the conversation into an architecture and show the diagram right here.",
+      "Describe the system you want to build, and I’ll help shape the architecture, explain tradeoffs, and generate a cloud design when the idea is ready.",
   },
 ];
+
+const QUICK_PROMPTS = [
+  "Design a secure three-tier app on Azure",
+  "Compare App Service vs Container Apps",
+  "Build a global e-commerce architecture",
+] as const;
 
 const CHAT_STORAGE_KEY = "ai-architect-chat-session";
 const CHAT_OPEN_KEY = "ai-architect-chat-open";
@@ -66,6 +72,19 @@ function quickLocalReply(content: string) {
   if (["cool", "great"].includes(normalized)) {
     return "Nice. Tell me what you want to build, or ask me an architecture question.";
   }
+  if (
+    [
+      "what can you do",
+      "what are you capable of",
+      "help me",
+      "capabilities",
+      "what do you do",
+      "help me what you are capable of doinh",
+      "help me what you are capable of doing",
+    ].some((phrase) => normalized.includes(phrase))
+  ) {
+    return "I can answer architecture questions, compare cloud services, explain tradeoffs, and generate full cloud architectures with diagrams and starter code when you ask me to design something.";
+  }
   if (normalized.length < 3) {
     return "Tell me a bit more about what you want to build, and I’ll help shape it.";
   }
@@ -92,6 +111,8 @@ export function ArchitectChatWidget() {
     () => messages.filter((message) => message.role === "user").length,
     [messages],
   );
+
+  const canShowSuggestions = conversationMessages === 0 && messages.length <= 1;
 
   useEffect(() => {
     try {
@@ -160,20 +181,19 @@ export function ArchitectChatWidget() {
     inputRef.current?.focus();
   }, [isOpen]);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const content = draft.trim();
-    if (!content || loading) {
+  async function submitContent(content: string) {
+    const trimmed = content.trim();
+    if (!trimmed || loading) {
       return;
     }
 
-    const nextMessages = [...messages, { role: "user" as const, content }];
+    const nextMessages = [...messages, { role: "user" as const, content: trimmed }];
     setMessages(nextMessages);
     setDraft("");
     setError("");
     setIsOpen(true);
 
-    const localReply = quickLocalReply(content);
+    const localReply = quickLocalReply(trimmed);
     if (localReply) {
       setMessages((current) => [
         ...current,
@@ -202,8 +222,8 @@ export function ArchitectChatWidget() {
           source_request: {
             prompt: nextMessages
               .filter((message) => message.role === "user")
-              .map((message) => message.content)
-              .join("\n"),
+          .map((message) => message.content)
+          .join("\n"),
             cloud,
             include_iac: includeIac,
             preferences,
@@ -233,6 +253,15 @@ export function ArchitectChatWidget() {
     }
   }
 
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await submitContent(draft);
+  }
+
+  async function submitPrompt(content: string) {
+    await submitContent(content);
+  }
+
   function handleNewChat() {
     setMessages(STARTER_MESSAGES);
     setDraft("");
@@ -260,9 +289,13 @@ export function ArchitectChatWidget() {
       {isOpen ? (
         <section className="chat-widget">
           <header className="chat-widget-header">
-            <div>
-              <p className="eyebrow">Architect Chat</p>
-              <h2>Assistant</h2>
+            <div className="chat-widget-heading">
+              <p className="eyebrow">KasdevTech Copilot</p>
+              <h2>Architecture Copilot</h2>
+              <p className="chat-widget-subtitle">
+                Ask architecture questions, pressure-test design choices, or
+                turn a prompt into a cloud solution.
+              </p>
             </div>
             <div className="chat-widget-actions">
               <button
@@ -270,14 +303,14 @@ export function ArchitectChatWidget() {
                 onClick={() => setShowOptions((current) => !current)}
                 type="button"
               >
-                Options
+                {showOptions ? "Hide context" : "Context"}
               </button>
               <button
                 className="chat-toolbar-button"
                 onClick={handleNewChat}
                 type="button"
               >
-                Reset
+                New chat
               </button>
               <button
                 aria-label="Close chat"
@@ -293,7 +326,7 @@ export function ArchitectChatWidget() {
           {showOptions ? (
             <div className="chat-widget-toolbar">
               <label className="composer-field chat-option-field">
-                <span>Cloud</span>
+                <span>Cloud target</span>
                 <select
                   value={cloud}
                   onChange={(event) => setCloud(event.target.value as CloudProvider)}
@@ -322,18 +355,36 @@ export function ArchitectChatWidget() {
                   onChange={(event) => setIncludeIac(event.target.checked)}
                   type="checkbox"
                 />
-                <span>IaC</span>
+                <span>Starter IaC</span>
               </label>
             </div>
           ) : (
             <div className="chat-widget-status">
               <span>{cloud.toUpperCase()}</span>
-              <span>{preferences.multi_region ? "Multi-region" : "Single region"}</span>
-              <span>{includeIac ? "IaC on" : "IaC off"}</span>
+              <span>
+                {preferences.multi_region ? "Multi-region" : "Single region"}
+              </span>
+              <span>{includeIac ? "IaC ready" : "Diagram only"}</span>
             </div>
           )}
 
           <div className="chat-widget-thread" ref={threadRef}>
+            {canShowSuggestions ? (
+              <section className="chat-suggestion-strip">
+                {QUICK_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    className="chat-suggestion"
+                    onClick={() => {
+                      void submitPrompt(prompt);
+                    }}
+                    type="button"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </section>
+            ) : null}
             {messages.map((message, index) => (
               <article
                 key={`${message.role}-${index}`}
@@ -344,7 +395,7 @@ export function ArchitectChatWidget() {
                 }
               >
                 <span className="chat-role">
-                  {message.role === "assistant" ? "Architect" : "You"}
+                  {message.role === "assistant" ? "Copilot" : "You"}
                 </span>
                 <p>{message.content}</p>
                 {message.architecture ? (
@@ -374,8 +425,8 @@ export function ArchitectChatWidget() {
             ))}
             {loading ? (
               <article className="chat-bubble assistant">
-                <span className="chat-role">Architect</span>
-                <p>Thinking through the requirements and preparing the architecture...</p>
+                <span className="chat-role">Copilot</span>
+                <p>Thinking through the architecture and shaping the response...</p>
               </article>
             ) : null}
           </div>
@@ -385,17 +436,18 @@ export function ArchitectChatWidget() {
               ref={inputRef}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={handleComposerKeyDown}
-              placeholder="Describe the product or platform you want to design..."
+              placeholder="Ask a question or describe the system you want to design..."
               rows={2}
               value={draft}
             />
             {error ? <p className="form-error">{error}</p> : null}
             <div className="chat-widget-footer">
               <span className="inline-helper">
-                Enter to send. Shift+Enter for new line.
+                Enter to send. Shift+Enter for a new line.
               </span>
               <span className="inline-helper">
-                {conversationMessages} message{conversationMessages === 1 ? "" : "s"}
+                {conversationMessages} user message
+                {conversationMessages === 1 ? "" : "s"} in context
               </span>
             </div>
           </form>
@@ -408,6 +460,10 @@ export function ArchitectChatWidget() {
         type="button"
       >
         <span className="chat-launcher-icon">⌁</span>
+        <span className="chat-launcher-copy">
+          <strong>Architecture Copilot</strong>
+          <small>Ask, refine, generate</small>
+        </span>
       </button>
     </div>
   );
