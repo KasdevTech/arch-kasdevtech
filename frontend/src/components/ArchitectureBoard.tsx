@@ -11,6 +11,12 @@ import type {
   ServiceMapping,
 } from "../types";
 
+type LaneDefinition = {
+  id: string;
+  title: string;
+  categories: string[];
+};
+
 type DiagramNode = {
   id: string;
   title: string;
@@ -35,32 +41,98 @@ const NODE_HEIGHT = 96;
 const VIEWBOX_WIDTH = 1280;
 const VIEWBOX_HEIGHT = 820;
 
-const COLUMN_X: Record<string, number> = {
-  actor: 40,
-  ingress: 260,
-  app: 530,
-  data: 800,
-  control: 1070,
-};
+const USER_COLUMN_X = 40;
 
-const CATEGORY_TO_COLUMN: Record<string, keyof typeof COLUMN_X> = {
-  security: "ingress",
-  edge: "ingress",
-  presentation: "ingress",
-  identity: "ingress",
-  api: "app",
-  compute: "app",
-  cache: "app",
-  messaging: "app",
-  ai: "app",
-  integration: "app",
-  data: "data",
-  storage: "data",
-  analytics: "data",
-  governance: "control",
-  control: "control",
-  network: "control",
-  operations: "control",
+const DEFAULT_LANES: LaneDefinition[] = [
+  {
+    id: "experience",
+    title: "Experience",
+    categories: ["edge", "presentation", "identity"],
+  },
+  {
+    id: "application",
+    title: "Application",
+    categories: ["api", "compute", "integration", "ai", "cache", "messaging"],
+  },
+  {
+    id: "data",
+    title: "Data",
+    categories: ["data", "storage", "analytics"],
+  },
+  {
+    id: "governance",
+    title: "Guardrails",
+    categories: ["security", "governance", "control", "network", "operations"],
+  },
+];
+
+const ARCHETYPE_LANES: Record<string, LaneDefinition[]> = {
+  ai_security_and_compliance: [
+    {
+      id: "surface",
+      title: "Surface",
+      categories: ["edge", "presentation", "identity", "api"],
+    },
+    {
+      id: "assessment",
+      title: "Assessment",
+      categories: ["compute", "control", "governance", "security"],
+    },
+    {
+      id: "evidence",
+      title: "Evidence",
+      categories: ["data", "storage", "analytics", "integration"],
+    },
+    {
+      id: "operations",
+      title: "Operations",
+      categories: ["network", "operations", "ai", "messaging"],
+    },
+  ],
+  ai_application_stack: [
+    {
+      id: "experience",
+      title: "Experience",
+      categories: ["edge", "presentation", "identity", "api"],
+    },
+    {
+      id: "orchestration",
+      title: "Orchestration",
+      categories: ["compute", "integration", "messaging"],
+    },
+    {
+      id: "intelligence",
+      title: "Intelligence",
+      categories: ["ai", "control", "governance"],
+    },
+    {
+      id: "knowledge",
+      title: "Knowledge",
+      categories: ["search", "data", "storage", "analytics"],
+    },
+  ],
+  data_processing_platform: [
+    {
+      id: "ingestion",
+      title: "Ingestion",
+      categories: ["integration", "api", "messaging"],
+    },
+    {
+      id: "processing",
+      title: "Processing",
+      categories: ["compute", "ai"],
+    },
+    {
+      id: "data",
+      title: "Data",
+      categories: ["storage", "data", "cache"],
+    },
+    {
+      id: "consumption",
+      title: "Consumption",
+      categories: ["analytics", "presentation", "operations"],
+    },
+  ],
 };
 
 const CLOUD_IMAGE_URLS = {
@@ -147,7 +219,7 @@ function serviceImage(cloud: ArchitectureResponse["cloud"], serviceId: string) {
 }
 
 function serviceSubtitle(service: ServiceMapping) {
-  return `${service.category} • ${service.label}`;
+  return service.cloud_service;
 }
 
 function categoryFill(category: string) {
@@ -176,14 +248,7 @@ function categoryFill(category: string) {
 }
 
 function columnTitle(column: string) {
-  const titles: Record<string, string> = {
-    ingress: "Ingress",
-    app: "Application",
-    data: "Data",
-    control: "Control Plane",
-  };
-
-  return titles[column] ?? column;
+  return column;
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -214,14 +279,56 @@ function drawIoStyle(node: DiagramNode) {
   ].join(";");
 }
 
+function activeLanes(architecture: ArchitectureResponse) {
+  const configured =
+    (architecture.archetype && ARCHETYPE_LANES[architecture.archetype]) ??
+    DEFAULT_LANES;
+
+  const presentCategories = new Set(
+    architecture.services.map((service) => service.category),
+  );
+
+  return configured.filter((lane) =>
+    lane.categories.some((category) => presentCategories.has(category)),
+  );
+}
+
+function laneXPositions(lanes: LaneDefinition[]) {
+  const positions = new Map<string, number>();
+  const startX = 250;
+  const availableWidth = VIEWBOX_WIDTH - startX - NODE_WIDTH - 40;
+  const gap = lanes.length > 1 ? availableWidth / (lanes.length - 1) : 0;
+
+  lanes.forEach((lane, index) => {
+    positions.set(lane.id, Math.round(startX + index * gap));
+  });
+
+  return positions;
+}
+
+function laneForCategory(
+  lanes: LaneDefinition[],
+  category: string,
+) {
+  const matched = lanes.find((lane) => lane.categories.includes(category))?.id;
+  if (matched) {
+    return matched;
+  }
+
+  const fallback = lanes[lanes.length - 1];
+  return fallback?.id ?? "governance";
+}
+
 function buildNodes(architecture: ArchitectureResponse) {
+  const lanes = activeLanes(architecture);
+  const lanePositions = laneXPositions(lanes);
   const nodes: DiagramNode[] = [
     {
       id: "users",
       title: "Users",
       subtitle: "clients • browsers",
       category: "actor",
-      x: COLUMN_X.actor,
+      x: USER_COLUMN_X,
       y: 320,
       width: 150,
       height: 78,
@@ -233,25 +340,35 @@ function buildNodes(architecture: ArchitectureResponse) {
   const grouped = new Map<string, ServiceMapping[]>();
 
   for (const service of architecture.services) {
-    const column = CATEGORY_TO_COLUMN[service.category] ?? "control";
-    const current = grouped.get(column) ?? [];
+    const lane = laneForCategory(lanes, service.category);
+    const current = grouped.get(lane) ?? [];
     current.push(service);
-    grouped.set(column, current);
+    grouped.set(lane, current);
   }
 
-  for (const [column, services] of grouped.entries()) {
+  for (const lane of lanes) {
+    const services = (grouped.get(lane.id) ?? []).sort((left, right) => {
+      const leftIndex = lane.categories.indexOf(left.category);
+      const rightIndex = lane.categories.indexOf(right.category);
+      return leftIndex - rightIndex;
+    });
+
+    let currentY = 128;
     services.forEach((service, index) => {
-      const totalHeight = services.length * NODE_HEIGHT + (services.length - 1) * 22;
-      const startY = Math.max(90, (VIEWBOX_HEIGHT - totalHeight) / 2);
+      if (index > 0) {
+        const previous = services[index - 1];
+        currentY += previous.category === service.category ? NODE_HEIGHT + 20 : NODE_HEIGHT + 44;
+      }
+
       const saved = architecture.canvas_layout?.[service.id];
 
       nodes.push({
         id: service.id,
-        title: service.cloud_service,
+        title: service.label,
         subtitle: serviceSubtitle(service),
         category: service.category,
-        x: saved?.x ?? COLUMN_X[column],
-        y: saved?.y ?? startY + index * (NODE_HEIGHT + 22),
+        x: saved?.x ?? (lanePositions.get(lane.id) ?? 240),
+        y: saved?.y ?? currentY,
         width: NODE_WIDTH,
         height: NODE_HEIGHT,
         image: serviceImage(architecture.cloud, service.id),
@@ -430,6 +547,8 @@ export function ArchitectureBoard({
   const dragStateRef = useRef<DragState | null>(null);
   const [nodes, setNodes] = useState(() => buildNodes(architecture));
   const [exporting, setExporting] = useState<string | null>(null);
+  const lanes = activeLanes(architecture);
+  const lanePositions = laneXPositions(lanes);
   const nodeMap = new Map(nodes.map((node) => [node.id, node]));
 
   useEffect(() => {
@@ -597,6 +716,20 @@ export function ArchitectureBoard({
                 Drag services to tune the layout, then export the current canvas as
                 enterprise handoff assets for engineering and architecture reviews.
               </p>
+              {architecture.domain || architecture.archetype ? (
+                <div className="pill-row">
+                  {architecture.domain ? (
+                    <span className="priority-pill">
+                      {architecture.domain.replace(/_/g, " ")}
+                    </span>
+                  ) : null}
+                  {architecture.archetype ? (
+                    <span className="priority-pill">
+                      {architecture.archetype.replace(/_/g, " ")}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
 
             <div className="board-actions">
@@ -684,26 +817,24 @@ export function ArchitectureBoard({
             y="0"
           />
 
-          {Object.entries(COLUMN_X)
-            .filter(([column]) => column !== "actor")
-            .map(([column, x]) => (
-              <g key={column}>
+          {lanes.map((lane) => (
+              <g key={lane.id}>
                 <text
                   fill="#7dd3fc"
                   fontFamily="'IBM Plex Mono', monospace"
                   fontSize="14"
                   letterSpacing="1.4"
-                  x={x}
+                  x={lanePositions.get(lane.id) ?? 240}
                   y="54"
                 >
-                  {columnTitle(column)}
+                  {columnTitle(lane.title)}
                 </text>
                 <line
                   stroke="rgba(125, 211, 252, 0.12)"
                   strokeDasharray="6 10"
                   strokeWidth="1"
-                  x1={x - 26}
-                  x2={x - 26}
+                  x1={(lanePositions.get(lane.id) ?? 240) - 26}
+                  x2={(lanePositions.get(lane.id) ?? 240) - 26}
                   y1="72"
                   y2={VIEWBOX_HEIGHT - 40}
                 />
@@ -783,7 +914,7 @@ export function ArchitectureBoard({
               <text
                 fill="#f8fafc"
                 fontFamily="Manrope, sans-serif"
-                fontSize="17"
+                fontSize="16"
                 fontWeight="700"
                 x={node.x + 92}
                 y={node.y + 42}
