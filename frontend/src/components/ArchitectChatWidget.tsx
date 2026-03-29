@@ -52,45 +52,6 @@ type PersistedChatSession = {
   preferences: ArchitecturePreferences;
 };
 
-function quickLocalReply(content: string) {
-  const normalized = content.trim().toLowerCase();
-  if (!normalized) {
-    return "Tell me what you want to build, and I’ll help shape the architecture.";
-  }
-  if (["hi", "hello", "hey", "i"].includes(normalized)) {
-    return "Hi. Tell me what you want to build, or ask me an architecture question.";
-  }
-  if (["how are you", "how are you?"].includes(normalized)) {
-    return "I’m doing well and ready to help. Tell me what you want to build, or ask me an architecture question.";
-  }
-  if (["thanks", "thank you"].includes(normalized)) {
-    return "You’re welcome. Tell me what you want to build next, or ask me an architecture question.";
-  }
-  if (["ok", "okay"].includes(normalized)) {
-    return "Alright. Tell me what you want to build, and I’ll help shape the architecture.";
-  }
-  if (["cool", "great"].includes(normalized)) {
-    return "Nice. Tell me what you want to build, or ask me an architecture question.";
-  }
-  if (
-    [
-      "what can you do",
-      "what are you capable of",
-      "help me",
-      "capabilities",
-      "what do you do",
-      "help me what you are capable of doinh",
-      "help me what you are capable of doing",
-    ].some((phrase) => normalized.includes(phrase))
-  ) {
-    return "I can answer architecture questions, compare cloud services, explain tradeoffs, and generate full cloud architectures with diagrams and starter code when you ask me to design something.";
-  }
-  if (normalized.length < 3) {
-    return "Tell me a bit more about what you want to build, and I’ll help shape it.";
-  }
-  return null;
-}
-
 export function ArchitectChatWidget() {
   const { saveProject } = useArchitectureStore();
   const [isOpen, setIsOpen] = useState(false);
@@ -192,18 +153,6 @@ export function ArchitectChatWidget() {
     setDraft("");
     setError("");
     setIsOpen(true);
-
-    const localReply = quickLocalReply(trimmed);
-    if (localReply) {
-      setMessages((current) => [
-        ...current,
-        {
-          role: "assistant",
-          content: localReply,
-        },
-      ]);
-      return;
-    }
 
     setLoading(true);
 
