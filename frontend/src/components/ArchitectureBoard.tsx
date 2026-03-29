@@ -17,6 +17,8 @@ type LaneDefinition = {
   categories: string[];
 };
 
+type NodeLayoutPreset = Record<string, { x: number; y: number }>;
+
 type DiagramNode = {
   id: string;
   title: string;
@@ -70,12 +72,12 @@ const ARCHETYPE_LANES: Record<string, LaneDefinition[]> = {
   ai_security_and_compliance: [
     {
       id: "surface",
-      title: "Surface",
+      title: "Access",
       categories: ["edge", "presentation", "identity", "api"],
     },
     {
       id: "assessment",
-      title: "Assessment",
+      title: "Assess",
       categories: ["compute", "control", "governance", "security"],
     },
     {
@@ -85,7 +87,7 @@ const ARCHETYPE_LANES: Record<string, LaneDefinition[]> = {
     },
     {
       id: "operations",
-      title: "Operations",
+      title: "Operate",
       categories: ["network", "operations", "ai", "messaging"],
     },
   ],
@@ -133,6 +135,41 @@ const ARCHETYPE_LANES: Record<string, LaneDefinition[]> = {
       categories: ["analytics", "presentation", "operations"],
     },
   ],
+};
+
+const ARCHETYPE_NODE_LAYOUTS: Record<string, NodeLayoutPreset> = {
+  ai_security_and_compliance: {
+    users: { x: 22, y: 330 },
+    waf: { x: 180, y: 90 },
+    frontend: { x: 180, y: 250 },
+    authentication: { x: 180, y: 410 },
+    api_gateway: { x: 460, y: 250 },
+    backend_api: { x: 460, y: 430 },
+    secrets: { x: 460, y: 590 },
+    discovery: { x: 740, y: 90 },
+    policy_engine: { x: 1010, y: 90 },
+    security_analytics: { x: 740, y: 290 },
+    database: { x: 740, y: 490 },
+    object_storage: { x: 1010, y: 290 },
+    analytics: { x: 1010, y: 490 },
+    integration: { x: 1010, y: 650 },
+    private_network: { x: 740, y: 650 },
+    monitoring: { x: 460, y: 700 },
+  },
+  ai_application_stack: {
+    users: { x: 22, y: 330 },
+    waf: { x: 180, y: 120 },
+    frontend: { x: 180, y: 280 },
+    authentication: { x: 180, y: 440 },
+    api_gateway: { x: 450, y: 280 },
+    backend_api: { x: 450, y: 460 },
+    ai_model_gateway: { x: 760, y: 220 },
+    search: { x: 760, y: 420 },
+    database: { x: 1030, y: 220 },
+    object_storage: { x: 1030, y: 420 },
+    analytics: { x: 1030, y: 620 },
+    monitoring: { x: 760, y: 620 },
+  },
 };
 
 const CLOUD_IMAGE_URLS = {
@@ -322,14 +359,16 @@ function laneForCategory(
 function buildNodes(architecture: ArchitectureResponse) {
   const lanes = activeLanes(architecture);
   const lanePositions = laneXPositions(lanes);
+  const layoutPreset =
+    (architecture.archetype && ARCHETYPE_NODE_LAYOUTS[architecture.archetype]) ?? {};
   const nodes: DiagramNode[] = [
     {
       id: "users",
       title: "Users",
       subtitle: "clients • browsers",
       category: "actor",
-      x: USER_COLUMN_X,
-      y: 320,
+      x: layoutPreset.users?.x ?? USER_COLUMN_X,
+      y: layoutPreset.users?.y ?? 320,
       width: 150,
       height: 78,
       image: "https://cdn.simpleicons.org/googlemessages/FFFFFF",
@@ -367,8 +406,8 @@ function buildNodes(architecture: ArchitectureResponse) {
         title: service.label,
         subtitle: serviceSubtitle(service),
         category: service.category,
-        x: saved?.x ?? (lanePositions.get(lane.id) ?? 240),
-        y: saved?.y ?? currentY,
+        x: saved?.x ?? layoutPreset[service.id]?.x ?? (lanePositions.get(lane.id) ?? 240),
+        y: saved?.y ?? layoutPreset[service.id]?.y ?? currentY,
         width: NODE_WIDTH,
         height: NODE_HEIGHT,
         image: serviceImage(architecture.cloud, service.id),
@@ -409,6 +448,57 @@ function connectionLine(source: DiagramNode, target: DiagramNode) {
     x2: Math.round(end.x),
     y2: Math.round(end.y),
   };
+}
+
+function connectionsForDisplay(architecture: ArchitectureResponse) {
+  if (architecture.archetype !== "ai_security_and_compliance") {
+    return architecture.connections;
+  }
+
+  const preferredOrder = [
+    "users->waf",
+    "waf->frontend",
+    "frontend->api_gateway",
+    "api_gateway->backend_api",
+    "backend_api->discovery",
+    "discovery->policy_engine",
+    "policy_engine->security_analytics",
+    "backend_api->database",
+    "backend_api->object_storage",
+    "security_analytics->analytics",
+    "backend_api->integration",
+    "backend_api->secrets",
+    "private_network->backend_api",
+    "private_network->database",
+    "private_network->object_storage",
+    "monitoring->backend_api",
+    "monitoring->security_analytics",
+    "monitoring->analytics",
+  ];
+
+  const selected = preferredOrder
+    .map((key) =>
+      architecture.connections.find(
+        (connection) => `${connection.source}->${connection.target}` === key,
+      ),
+    )
+    .filter((connection): connection is Connection => Boolean(connection));
+
+  return selected.length > 0 ? selected : architecture.connections;
+}
+
+function shouldShowConnectionLabel(
+  connection: Connection,
+  source: DiagramNode,
+  target: DiagramNode,
+) {
+  if (connection.dashed) {
+    return false;
+  }
+
+  const horizontalGap = Math.abs(target.x - source.x);
+  const verticalGap = Math.abs(target.y - source.y);
+  return horizontalGap > 120 || verticalGap > 90;
 }
 
 function buildCanvasLayout(nodes: DiagramNode[]) {
@@ -549,6 +639,7 @@ export function ArchitectureBoard({
   const [exporting, setExporting] = useState<string | null>(null);
   const lanes = activeLanes(architecture);
   const lanePositions = laneXPositions(lanes);
+  const visibleConnections = connectionsForDisplay(architecture);
   const nodeMap = new Map(nodes.map((node) => [node.id, node]));
 
   useEffect(() => {
@@ -841,7 +932,7 @@ export function ArchitectureBoard({
               </g>
             ))}
 
-          {architecture.connections.map((connection) => {
+          {visibleConnections.map((connection) => {
             const source = nodeMap.get(connection.source);
             const target = nodeMap.get(connection.target);
 
@@ -863,7 +954,9 @@ export function ArchitectureBoard({
                   strokeLinecap="round"
                   strokeWidth={connection.dashed ? 4 : 3}
                 />
-                {showConnectionLabels && connection.label ? (
+                {showConnectionLabels &&
+                connection.label &&
+                shouldShowConnectionLabel(connection, source, target) ? (
                   <text
                     fill="#cbd5e1"
                     fontFamily="'IBM Plex Mono', monospace"
