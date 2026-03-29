@@ -56,6 +56,7 @@ class SolutionDomain(str, Enum):
     ai_platform = "ai_platform"
     ai_governance = "ai_governance"
     cybersecurity = "cybersecurity"
+    fintech_platform = "fintech_platform"
     integration_platform = "integration_platform"
     developer_platform = "developer_platform"
     analytics_platform = "analytics_platform"
@@ -69,6 +70,7 @@ class SolutionArchetype(str, Enum):
     ai_application_stack = "ai_application_stack"
     ai_security_and_compliance = "ai_security_and_compliance"
     security_operations_center = "security_operations_center"
+    fintech_transaction_platform = "fintech_transaction_platform"
     internal_developer_portal = "internal_developer_portal"
     integration_hub = "integration_hub"
     analytics_and_reporting = "analytics_and_reporting"
@@ -78,6 +80,7 @@ class SolutionArchetype(str, Enum):
 class ComponentType(str, Enum):
     frontend = "frontend"
     backend_api = "backend_api"
+    cicd_pipeline = "cicd_pipeline"
     database = "database"
     authentication = "authentication"
     cdn = "cdn"

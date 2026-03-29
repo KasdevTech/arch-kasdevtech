@@ -54,7 +54,7 @@ const DEFAULT_LANES: LaneDefinition[] = [
   {
     id: "application",
     title: "Application",
-    categories: ["api", "compute", "integration", "ai", "cache", "messaging"],
+    categories: ["api", "compute", "integration", "ai", "cache", "messaging", "delivery"],
   },
   {
     id: "data",
@@ -132,7 +132,29 @@ const ARCHETYPE_LANES: Record<string, LaneDefinition[]> = {
     {
       id: "consumption",
       title: "Consumption",
-      categories: ["analytics", "presentation", "operations"],
+      categories: ["analytics", "presentation", "operations", "delivery"],
+    },
+  ],
+  internal_developer_portal: [
+    {
+      id: "portal",
+      title: "Portal",
+      categories: ["presentation", "identity", "api"],
+    },
+    {
+      id: "platform",
+      title: "Platform",
+      categories: ["compute", "integration", "delivery"],
+    },
+    {
+      id: "catalog",
+      title: "Catalog",
+      categories: ["data", "storage", "analytics"],
+    },
+    {
+      id: "guardrails",
+      title: "Guardrails",
+      categories: ["governance", "security", "network", "operations", "control"],
     },
   ],
 };
@@ -170,6 +192,20 @@ const ARCHETYPE_NODE_LAYOUTS: Record<string, NodeLayoutPreset> = {
     analytics: { x: 1030, y: 620 },
     monitoring: { x: 760, y: 620 },
   },
+  internal_developer_portal: {
+    users: { x: 22, y: 330 },
+    frontend: { x: 190, y: 250 },
+    authentication: { x: 190, y: 430 },
+    api_gateway: { x: 470, y: 250 },
+    backend_api: { x: 470, y: 430 },
+    cicd_pipeline: { x: 470, y: 610 },
+    database: { x: 760, y: 250 },
+    integration: { x: 760, y: 430 },
+    policy_engine: { x: 1020, y: 250 },
+    secrets: { x: 1020, y: 430 },
+    private_network: { x: 1020, y: 610 },
+    monitoring: { x: 760, y: 610 },
+  },
 };
 
 const CLOUD_IMAGE_URLS = {
@@ -205,6 +241,8 @@ const AZURE_OFFICIAL_IMAGE_URLS: Record<string, string> = {
     "/assets/azure-icons/Azure_Public_Service_Icons/Icons/networking/10061-icon-service-Virtual-Networks.svg",
   monitoring:
     "/assets/azure-icons/Azure_Public_Service_Icons/Icons/management%20%2B%20governance/00001-icon-service-Monitor.svg",
+  cicd_pipeline:
+    "/assets/azure-icons/Azure_Public_Service_Icons/Icons/devops/10261-icon-service-Azure-DevOps.svg",
   analytics:
     "/assets/azure-icons/Azure_Public_Service_Icons/Icons/analytics/10126-icon-service-Power-BI-Embedded.svg",
   policy_engine:
@@ -245,6 +283,7 @@ const SERVICE_IMAGE_URLS: Record<string, string> = {
   search: "https://cdn.simpleicons.org/elasticsearch/005571",
   ml_platform: "https://cdn.simpleicons.org/mlflow/0194E2",
   integration: "https://cdn.simpleicons.org/n8n/EA4B71",
+  cicd_pipeline: "https://cdn.simpleicons.org/githubactions/2088FF",
 };
 
 function serviceImage(cloud: ArchitectureResponse["cloud"], serviceId: string) {
@@ -276,6 +315,7 @@ function categoryFill(category: string) {
     control: "#1c2230",
     ai: "#23183b",
     integration: "#271b39",
+    delivery: "#0f2b37",
     network: "#191d39",
     operations: "#1f2431",
     actor: "#102638",

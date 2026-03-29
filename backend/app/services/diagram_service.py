@@ -21,6 +21,7 @@ CATEGORY_CLASS_NAMES = {
     "control": "control",
     "ai": "ai",
     "integration": "integration",
+    "delivery": "delivery",
 }
 
 
@@ -46,6 +47,7 @@ class MermaidDiagramService:
             "  classDef control fill:#e2e8f0,stroke:#475569,color:#0f172a;",
             "  classDef ai fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;",
             "  classDef integration fill:#f5f3ff,stroke:#6d28d9,color:#4c1d95;",
+            "  classDef delivery fill:#ecfeff,stroke:#0284c7,color:#0c4a6e;",
             '  users["Users"]:::actor',
         ]
 

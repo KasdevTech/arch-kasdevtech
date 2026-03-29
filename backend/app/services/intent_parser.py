@@ -24,22 +24,44 @@ from app.services.prompt_templates import INTENT_SYSTEM_PROMPT
 
 
 class IntentParser:
+    DOMAIN_PRIORITY = {
+        SolutionDomain.ai_governance: 110,
+        SolutionDomain.cybersecurity: 105,
+        SolutionDomain.fintech_platform: 100,
+        SolutionDomain.developer_platform: 95,
+        SolutionDomain.ai_platform: 90,
+        SolutionDomain.integration_platform: 80,
+        SolutionDomain.data_platform: 70,
+        SolutionDomain.analytics_platform: 65,
+        SolutionDomain.web_saas: 50,
+        SolutionDomain.enterprise_application: 10,
+    }
+
     DOMAIN_OVERRIDE_RULES = [
         (
-            SolutionDomain.web_saas,
+            SolutionDomain.fintech_platform,
             [
-                "e-commerce",
-                "ecommerce",
-                "online store",
-                "shopping cart",
-                "checkout",
-                "payments",
-                "payment",
-                "catalog",
-                "orders",
-                "1m users",
-                "million users",
-                "global traffic",
+                "payment gateway",
+                "payment processor",
+                "pci",
+                "fraud",
+                "transaction processing",
+                "wallet",
+                "banking",
+                "ledger",
+                "fintech",
+            ],
+        ),
+        (
+            SolutionDomain.developer_platform,
+            [
+                "developer portal",
+                "internal developer platform",
+                "platform engineering",
+                "service catalog",
+                "golden path",
+                "self-service provisioning",
+                "idp",
             ],
         ),
         (
@@ -103,6 +125,23 @@ class IntentParser:
                 "batch processing",
             ],
         ),
+        (
+            SolutionDomain.web_saas,
+            [
+                "e-commerce",
+                "ecommerce",
+                "online store",
+                "shopping cart",
+                "checkout",
+                "payments",
+                "payment",
+                "catalog",
+                "orders",
+                "1m users",
+                "million users",
+                "global traffic",
+            ],
+        ),
     ]
 
     DOMAIN_KEYWORDS = {
@@ -133,6 +172,17 @@ class IntentParser:
             "attack",
             "threat intel",
             "incident",
+        ],
+        SolutionDomain.fintech_platform: [
+            "payment",
+            "payments",
+            "pci",
+            "fraud",
+            "transaction",
+            "fintech",
+            "checkout",
+            "ledger",
+            "wallet",
         ],
         SolutionDomain.data_platform: [
             "etl",
@@ -206,6 +256,7 @@ class IntentParser:
         SolutionDomain.ai_platform: SolutionArchetype.ai_application_stack,
         SolutionDomain.ai_governance: SolutionArchetype.ai_security_and_compliance,
         SolutionDomain.cybersecurity: SolutionArchetype.security_operations_center,
+        SolutionDomain.fintech_platform: SolutionArchetype.fintech_transaction_platform,
         SolutionDomain.integration_platform: SolutionArchetype.integration_hub,
         SolutionDomain.developer_platform: SolutionArchetype.internal_developer_portal,
         SolutionDomain.analytics_platform: SolutionArchetype.analytics_and_reporting,
@@ -237,6 +288,16 @@ class IntentParser:
             "service",
             "server",
             "microservice",
+        ],
+        ComponentType.cicd_pipeline: [
+            "ci/cd",
+            "cicd",
+            "pipeline",
+            "deployment pipeline",
+            "github actions",
+            "azure devops",
+            "build pipeline",
+            "release pipeline",
         ],
         ComponentType.database: [
             "database",
@@ -664,6 +725,7 @@ class IntentParser:
             ComponentType.cdn: "Global edge layer",
             ComponentType.cache: "Cache layer",
             ComponentType.queue: "Async messaging",
+            ComponentType.cicd_pipeline: "CI/CD pipeline",
             ComponentType.object_storage: "Object storage",
             ComponentType.api_gateway: "API gateway",
             ComponentType.monitoring: "Monitoring",
@@ -685,6 +747,7 @@ class IntentParser:
             ComponentType.cdn: ["global caching"],
             ComponentType.cache: ["hot-path acceleration"],
             ComponentType.queue: ["asynchronous processing"],
+            ComponentType.cicd_pipeline: ["build automation", "release orchestration"],
             ComponentType.object_storage: ["durable file storage"],
             ComponentType.api_gateway: ["routing", "policy enforcement"],
             ComponentType.monitoring: ["logs", "metrics", "traces"],
@@ -797,6 +860,30 @@ class IntentParser:
                 self._ensure_component(components, ComponentType.integration, lowered_prompt)
             if any(keyword in lowered_prompt for keyword in ["microservice", "microservices"]):
                 self._ensure_component(components, ComponentType.backend_api, lowered_prompt)
+            if any(keyword in lowered_prompt for keyword in ["ci/cd", "cicd", "pipeline", "deployment pipeline"]):
+                self._ensure_component(components, ComponentType.cicd_pipeline, lowered_prompt)
+
+        if domain == SolutionDomain.fintech_platform:
+            self._ensure_component(components, ComponentType.backend_api, lowered_prompt)
+            self._ensure_component(components, ComponentType.api_gateway, lowered_prompt)
+            self._ensure_component(components, ComponentType.queue, lowered_prompt)
+            self._ensure_component(components, ComponentType.cache, lowered_prompt)
+            self._ensure_component(components, ComponentType.integration, lowered_prompt)
+            self._ensure_component(components, ComponentType.secrets, lowered_prompt)
+            self._ensure_component(components, ComponentType.private_network, lowered_prompt)
+            if any(keyword in lowered_prompt for keyword in ["ci/cd", "cicd", "pipeline", "deployment pipeline"]):
+                self._ensure_component(components, ComponentType.cicd_pipeline, lowered_prompt)
+            if any(keyword in lowered_prompt for keyword in ["global", "multi-region", "worldwide"]):
+                self._ensure_component(components, ComponentType.cdn, lowered_prompt)
+
+        if domain == SolutionDomain.developer_platform:
+            self._ensure_component(components, ComponentType.frontend, lowered_prompt)
+            self._ensure_component(components, ComponentType.authentication, lowered_prompt)
+            self._ensure_component(components, ComponentType.backend_api, lowered_prompt)
+            self._ensure_component(components, ComponentType.database, lowered_prompt)
+            self._ensure_component(components, ComponentType.integration, lowered_prompt)
+            self._ensure_component(components, ComponentType.policy_engine, lowered_prompt)
+            self._ensure_component(components, ComponentType.cicd_pipeline, lowered_prompt)
 
         if (
             preferences.network_exposure != NetworkExposure.public
@@ -824,6 +911,7 @@ class IntentParser:
             ComponentType.authentication,
             ComponentType.api_gateway,
             ComponentType.backend_api,
+            ComponentType.cicd_pipeline,
             ComponentType.cache,
             ComponentType.queue,
             ComponentType.database,
@@ -921,6 +1009,8 @@ class IntentParser:
             patterns.append("global_traffic_routing")
         if any(keyword in lowered_prompt for keyword in ["ci/cd", "cicd", "pipeline", "deployment pipeline"]):
             patterns.append("continuous_delivery")
+        if any(keyword in lowered_prompt for keyword in ["fraud", "pci", "ledger", "banking"]):
+            patterns.append("regulated_transaction_flows")
 
         return self._dedupe(patterns)
 
@@ -996,6 +1086,8 @@ class IntentParser:
             keyword in lowered_prompt for keyword in ["e-commerce", "ecommerce", "payment", "checkout", "orders"]
         ):
             assumptions.append("Assuming transactional integrity, payment isolation, and burst-tolerant order processing are core platform requirements.")
+        if domain == SolutionDomain.fintech_platform:
+            assumptions.append("Assuming payment isolation, regulatory evidence, and transaction integrity are primary architectural concerns.")
 
         return assumptions
 
@@ -1008,10 +1100,13 @@ class IntentParser:
         if forced is not None:
             return forced
 
-        scores: dict[SolutionDomain, int] = {
-            domain: sum(1 for keyword in keywords if keyword in lowered_prompt)
-            for domain, keywords in self.DOMAIN_KEYWORDS.items()
-        }
+        scores: dict[SolutionDomain, int] = {}
+        for domain, keywords in self.DOMAIN_KEYWORDS.items():
+            matched_keywords = sum(1 for keyword in keywords if keyword in lowered_prompt)
+            if matched_keywords > 0:
+                scores[domain] = matched_keywords * 100 + self.DOMAIN_PRIORITY.get(domain, 0)
+            else:
+                scores[domain] = 0
 
         component_types = {component.type for component in components}
         if ComponentType.ai_model_gateway in component_types or ComponentType.search in component_types:
@@ -1033,10 +1128,23 @@ class IntentParser:
         return best_domain[0]
 
     def _forced_domain(self, lowered_prompt: str) -> SolutionDomain | None:
+        matches: list[tuple[int, int, SolutionDomain]] = []
         for domain, keywords in self.DOMAIN_OVERRIDE_RULES:
-            if any(keyword in lowered_prompt for keyword in keywords):
-                return domain
-        return None
+            matched_keywords = sum(1 for keyword in keywords if keyword in lowered_prompt)
+            if matched_keywords:
+                matches.append(
+                    (
+                        matched_keywords,
+                        self.DOMAIN_PRIORITY.get(domain, 0),
+                        domain,
+                    )
+                )
+
+        if not matches:
+            return None
+
+        matches.sort(reverse=True)
+        return matches[0][2]
 
     def _select_archetype(
         self,
