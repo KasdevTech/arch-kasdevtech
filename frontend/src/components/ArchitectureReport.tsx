@@ -22,6 +22,8 @@ export function ArchitectureReport({
   onDelete,
 }: ArchitectureReportProps) {
   const deferredArchitecture = useDeferredValue(architecture);
+  const confidenceScore = deferredArchitecture.confidence_score ?? 0;
+  const validatorFindings = deferredArchitecture.validator_findings ?? [];
   const [exportStatus, setExportStatus] = useState("");
 
   async function handleCopyMermaid() {
@@ -149,6 +151,27 @@ export function ArchitectureReport({
 
         <article className="card profile-card">
           <div className="section-heading">
+            <p className="eyebrow">Quality</p>
+            <h2>Architecture confidence</h2>
+          </div>
+          <div className="definition-list">
+            <div>
+              <span>Confidence score</span>
+              <strong>{Math.round(confidenceScore * 100)}%</strong>
+            </div>
+            <div>
+              <span>Matched pattern</span>
+              <strong>{deferredArchitecture.matched_pattern ?? "No direct pattern match"}</strong>
+            </div>
+            <div>
+              <span>Validation findings</span>
+              <strong>{validatorFindings.length}</strong>
+            </div>
+          </div>
+        </article>
+
+        <article className="card profile-card">
+          <div className="section-heading">
             <p className="eyebrow">Highlights</p>
             <h2>Topology summary</h2>
           </div>
@@ -158,6 +181,28 @@ export function ArchitectureReport({
             ))}
           </ul>
         </article>
+      </section>
+
+      <section className="card">
+        <div className="section-heading">
+          <p className="eyebrow">Validation</p>
+          <h2>Quality findings</h2>
+        </div>
+        {validatorFindings.length > 0 ? (
+          <div className="content-stack">
+            {validatorFindings.map((finding, index) => (
+              <article key={`${finding.severity}-${index}`} className="narrative-block">
+                <h3>{finding.severity.toUpperCase()}</h3>
+                <p>{finding.message}</p>
+                <p>{finding.recommendation}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="section-copy">
+            No material validation gaps were detected for the generated architecture pattern.
+          </p>
+        )}
       </section>
 
       <section className="card">

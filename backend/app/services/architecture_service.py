@@ -3,6 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.models import ArchitectureRequest, ArchitectureResponse
+from app.services.architecture_validator import architecture_validator
 from app.services.diagram_service import MermaidDiagramService
 from app.services.explanation_service import ExplanationService
 from app.services.iac_service import TerraformStarterService
@@ -32,6 +33,10 @@ class ArchitectureService:
             risk_flags,
         ) = self.explanation_service.build_sections(intent, services)
         iac_template = self.iac_service.build(intent, services) if payload.include_iac else None
+        confidence_score, matched_pattern, validator_findings = architecture_validator.validate(
+            intent,
+            services,
+        )
 
         return ArchitectureResponse(
             request_id=str(uuid4()),
@@ -52,6 +57,9 @@ class ArchitectureService:
             connections=connections,
             explanation_sections=explanation_sections,
             recommended_next_steps=next_steps,
+            confidence_score=confidence_score,
+            matched_pattern=matched_pattern,
+            validator_findings=validator_findings,
             mermaid=mermaid,
             iac_template=iac_template,
         )

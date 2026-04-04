@@ -172,6 +172,12 @@ class ExplanationSection(BaseModel):
     body: str
 
 
+class ArchitectureValidationFinding(BaseModel):
+    severity: str
+    message: str
+    recommendation: str
+
+
 class ArchitectureResponse(BaseModel):
     request_id: str
     created_at: datetime = Field(
@@ -194,6 +200,9 @@ class ArchitectureResponse(BaseModel):
     connections: list[Connection]
     explanation_sections: list[ExplanationSection]
     recommended_next_steps: list[str]
+    confidence_score: float = 0.0
+    matched_pattern: Optional[str] = None
+    validator_findings: list[ArchitectureValidationFinding] = Field(default_factory=list)
     mermaid: str
     iac_template: Optional[str] = None
 

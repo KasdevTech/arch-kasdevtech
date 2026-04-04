@@ -78,6 +78,12 @@ export interface ExplanationSection {
   body: string;
 }
 
+export interface ArchitectureValidationFinding {
+  severity: string;
+  message: string;
+  recommendation: string;
+}
+
 export interface CanvasPosition {
   x: number;
   y: number;
@@ -105,6 +111,9 @@ export interface ArchitectureResponse {
   connections: Connection[];
   explanation_sections: ExplanationSection[];
   recommended_next_steps: string[];
+  confidence_score?: number;
+  matched_pattern?: string | null;
+  validator_findings?: ArchitectureValidationFinding[];
   mermaid: string;
   iac_template?: string | null;
   source_request?: ArchitectureRequest;

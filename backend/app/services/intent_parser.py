@@ -20,6 +20,7 @@ from app.models import (
     SolutionDomain,
     UserScale,
 )
+from app.services.pattern_library import pattern_library
 from app.services.prompt_templates import INTENT_SYSTEM_PROMPT
 
 
@@ -998,6 +999,13 @@ class IntentParser:
             self._ensure_component(components, ComponentType.cache, lowered_prompt)
             self._ensure_component(components, ComponentType.queue, lowered_prompt)
 
+        matched_pattern = pattern_library.match(lowered_prompt)
+        if matched_pattern:
+            for component_name in matched_pattern.expected_components:
+                component_type = self._component_type_from_name(component_name)
+                if component_type is not None:
+                    self._ensure_component(components, component_type, lowered_prompt)
+
         ordered_types = [
             ComponentType.waf,
             ComponentType.cdn,
@@ -1037,6 +1045,12 @@ class IntentParser:
                 seen.add(component.type)
 
         return deduped
+
+    def _component_type_from_name(self, component_name: str) -> ComponentType | None:
+        try:
+            return ComponentType(component_name)
+        except ValueError:
+            return None
 
     def _extract_priorities(
         self,

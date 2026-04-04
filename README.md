@@ -2,6 +2,13 @@
 
 A full-stack MVP that turns a plain-English product idea into a cloud architecture proposal, explanation, editable visual canvas, and optional infrastructure code starter.
 
+## Documentation
+
+- Product and setup overview: [README.md](/Users/kasisureshdevarajugattu/Coding/AI-Arch/README.md)
+- End-to-end technical walkthrough: [docs/TECHNICAL_WALKTHROUGH.md](/Users/kasisureshdevarajugattu/Coding/AI-Arch/docs/TECHNICAL_WALKTHROUGH.md)
+- Code explanation: [docs/CODE_EXPLANATION.md](/Users/kasisureshdevarajugattu/Coding/AI-Arch/docs/CODE_EXPLANATION.md)
+- Accuracy and enterprise roadmap: [docs/ACCURACY_AND_ENTERPRISE_ROADMAP.md](/Users/kasisureshdevarajugattu/Coding/AI-Arch/docs/ACCURACY_AND_ENTERPRISE_ROADMAP.md)
+
 ## What It Includes
 
 - Natural-language architecture intake
@@ -32,6 +39,21 @@ backend/
     services/
 frontend/
   src/
+docs/
+  TECHNICAL_WALKTHROUGH.md
+```
+
+## End-to-End Flow
+
+```mermaid
+flowchart LR
+    A[User Prompt] --> B[Frontend Studio or Copilot]
+    B --> C[FastAPI API]
+    C --> D[Intent Parser / Chat Router]
+    D --> E[Cloud Mapping Engine]
+    E --> F[Diagram + Explanation + IaC Builders]
+    F --> G[Architecture Response]
+    G --> H[Frontend Pages + Chat + Local Project Library]
 ```
 
 ## Run The Backend
