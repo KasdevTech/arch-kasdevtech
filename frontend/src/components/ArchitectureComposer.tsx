@@ -100,7 +100,7 @@ export function ArchitectureComposer({
         <p className="eyebrow">Workload Intake</p>
         <h2>
           {mode === "edit"
-            ? "Edit architecture project"
+            ? "Rename or update project"
             : "Build a new architecture project"}
         </h2>
       </div>
@@ -108,7 +108,7 @@ export function ArchitectureComposer({
       <form className="composer-form" onSubmit={handleSubmit}>
         <div className="control-grid">
           <label className="field">
-            <span>Workload name</span>
+            <span>Project name</span>
             <input
               className="text-input"
               value={preferences.workload_name ?? ""}

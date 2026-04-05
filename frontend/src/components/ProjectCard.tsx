@@ -19,16 +19,16 @@ export function ProjectCard({ architecture }: ProjectCardProps) {
     <article className="card project-card">
       <div className="project-card-head">
         <div>
-          <p className="eyebrow">Architecture</p>
+          <p className="eyebrow">Project</p>
           <h3>{architecture.title}</h3>
         </div>
         <span className="cloud-pill">{architecture.cloud.toUpperCase()}</span>
       </div>
 
-      <p className="project-summary">{architecture.summary}</p>
+      <p className="project-summary compact">{architecture.summary}</p>
 
       <div className="pill-row">
-        {architecture.priorities.slice(0, 3).map((priority) => (
+        {architecture.priorities.slice(0, 2).map((priority) => (
           <span className="priority-pill" key={priority}>
             {VALUE_LABELS[priority] ?? priority}
           </span>
@@ -43,26 +43,22 @@ export function ProjectCard({ architecture }: ProjectCardProps) {
 
       <div className="project-meta">
         <div>
-          <span>Updated</span>
+          <span>Date</span>
           <strong>{formatDate(architecture.created_at)}</strong>
         </div>
         <div>
-          <span>Services</span>
-          <strong>{architecture.services.length}</strong>
+          <span>Cloud</span>
+          <strong>{architecture.cloud.toUpperCase()}</strong>
         </div>
         <div>
-          <span>Compliance</span>
-          <strong>
-            {architecture.preferences.compliance_frameworks.length > 0
-              ? architecture.preferences.compliance_frameworks.length
-              : "None"}
-          </strong>
+          <span>Score</span>
+          <strong>{architecture.services.length}</strong>
         </div>
       </div>
 
       <Link
         className="inline-link"
-        to={`/app/projects/${architecture.request_id}/overview`}
+        to={`/app/projects/${architecture.request_id}/arch`}
       >
         Open project
       </Link>

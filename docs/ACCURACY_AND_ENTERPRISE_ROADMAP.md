@@ -24,6 +24,8 @@ What is now implemented in code:
 - lightweight local classifier over curated pattern examples
 - architecture validator and confidence scoring
 - matched pattern and validation findings in the final response
+- backend-backed project persistence with version history
+- Terraform-first Ship prepare/apply flow for the supported Azure resource subset
 
 ## 2. Why Results Can Still Be Inaccurate
 
@@ -162,7 +164,7 @@ Add a post-generation validator that checks:
 - expected delivery controls for CI/CD prompts
 - expected edge/cache/messaging for high-scale apps
 
-This is the fastest accuracy win.
+This phase is partially implemented now through the validator, pattern ranking, and deployable inventory checks in Ship.
 
 ### Phase 2: Retrieval-Based Architecture Knowledge
 

@@ -286,12 +286,16 @@ const SERVICE_IMAGE_URLS: Record<string, string> = {
   cicd_pipeline: "https://cdn.simpleicons.org/githubactions/2088FF",
 };
 
-function serviceImage(cloud: ArchitectureResponse["cloud"], serviceId: string) {
-  if (cloud === "azure" && AZURE_OFFICIAL_IMAGE_URLS[serviceId]) {
-    return AZURE_OFFICIAL_IMAGE_URLS[serviceId];
+function serviceImage(
+  cloud: ArchitectureResponse["cloud"],
+  serviceType: ServiceMapping["type"],
+) {
+  const key = serviceType;
+  if (cloud === "azure" && AZURE_OFFICIAL_IMAGE_URLS[key]) {
+    return AZURE_OFFICIAL_IMAGE_URLS[key];
   }
 
-  return SERVICE_IMAGE_URLS[serviceId] ?? CLOUD_IMAGE_URLS[cloud];
+  return SERVICE_IMAGE_URLS[key] ?? CLOUD_IMAGE_URLS[cloud];
 }
 
 function serviceSubtitle(service: ServiceMapping) {
@@ -446,11 +450,19 @@ function buildNodes(architecture: ArchitectureResponse) {
         title: service.label,
         subtitle: serviceSubtitle(service),
         category: service.category,
-        x: saved?.x ?? layoutPreset[service.id]?.x ?? (lanePositions.get(lane.id) ?? 240),
-        y: saved?.y ?? layoutPreset[service.id]?.y ?? currentY,
+        x:
+          saved?.x ??
+          layoutPreset[service.id]?.x ??
+          layoutPreset[service.type]?.x ??
+          (lanePositions.get(lane.id) ?? 240),
+        y:
+          saved?.y ??
+          layoutPreset[service.id]?.y ??
+          layoutPreset[service.type]?.y ??
+          currentY,
         width: NODE_WIDTH,
         height: NODE_HEIGHT,
-        image: serviceImage(architecture.cloud, service.id),
+        image: serviceImage(architecture.cloud, service.type),
       });
     });
   }
@@ -660,14 +672,18 @@ function slugifyTitle(value: string) {
 
 export function ArchitectureBoard({
   architecture,
+  services,
   onLayoutChange,
+  onServicesChange,
   readOnly = false,
   showLegend = true,
   showToolbar = true,
   showConnectionLabels = true,
 }: {
   architecture: ArchitectureResponse;
+  services?: ServiceMapping[];
   onLayoutChange?: (layout: CanvasLayout) => void;
+  onServicesChange?: (services: ServiceMapping[]) => void;
   readOnly?: boolean;
   showLegend?: boolean;
   showToolbar?: boolean;
@@ -675,16 +691,28 @@ export function ArchitectureBoard({
 }) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
-  const [nodes, setNodes] = useState(() => buildNodes(architecture));
+  const activeArchitecture = services
+    ? { ...architecture, services }
+    : architecture;
+  const [nodes, setNodes] = useState(() => buildNodes(activeArchitecture));
   const [exporting, setExporting] = useState<string | null>(null);
-  const lanes = activeLanes(architecture);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const lanes = activeLanes(activeArchitecture);
   const lanePositions = laneXPositions(lanes);
-  const visibleConnections = connectionsForDisplay(architecture);
+  const visibleConnections = connectionsForDisplay(activeArchitecture);
   const nodeMap = new Map(nodes.map((node) => [node.id, node]));
+  const editableServices = services ?? architecture.services;
+  const selectedService = editableServices.find((service) => service.id === selectedNodeId) ?? null;
 
   useEffect(() => {
-    setNodes(buildNodes(architecture));
-  }, [architecture]);
+    setNodes(buildNodes(activeArchitecture));
+  }, [activeArchitecture]);
+
+  useEffect(() => {
+    if (selectedNodeId && !editableServices.some((service) => service.id === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [editableServices, selectedNodeId]);
 
   useEffect(() => {
     function handlePointerMove(event: PointerEvent) {
@@ -757,9 +785,52 @@ export function ArchitectureBoard({
   }
 
   function resetLayout() {
-    const resetNodes = buildNodes({ ...architecture, canvas_layout: undefined });
+    const resetNodes = buildNodes({ ...activeArchitecture, canvas_layout: undefined });
     setNodes(resetNodes);
     onLayoutChange?.(buildCanvasLayout(resetNodes));
+  }
+
+  function updateSelectedService(key: keyof ServiceMapping, value: string) {
+    if (!selectedService || !onServicesChange) {
+      return;
+    }
+
+    onServicesChange(
+      editableServices.map((service) =>
+        service.id === selectedService.id ? { ...service, [key]: value } : service,
+      ),
+    );
+  }
+
+  function removeSelectedService() {
+    if (!selectedService || !onServicesChange) {
+      return;
+    }
+
+    onServicesChange(
+      editableServices.filter((service) => service.id !== selectedService.id),
+    );
+    setSelectedNodeId(null);
+  }
+
+  function addServiceFromCanvas() {
+    if (!onServicesChange) {
+      return;
+    }
+
+    const index = editableServices.length + 1;
+    const nextId = `custom_${index}`;
+    const nextService: ServiceMapping = {
+      id: nextId,
+      type: "integration",
+      label: `Custom Service ${index}`,
+      cloud_service: "Azure Logic Apps",
+      category: "integration",
+      rationale: "Custom architecture service.",
+    };
+
+    onServicesChange([...editableServices, nextService]);
+    setSelectedNodeId(nextId);
   }
 
   async function exportSvg(filename: string) {
@@ -870,10 +941,10 @@ export function ArchitectureBoard({
               <button
                 className="secondary-button"
                 disabled={Boolean(exporting)}
-                onClick={() => exportSvg(`${architecture.request_id}-architecture.svg`)}
+                onClick={() => exportSvg(`${activeArchitecture.request_id}-architecture.svg`)}
                 type="button"
               >
-                {exporting === `${architecture.request_id}-architecture.svg`
+                {exporting === `${activeArchitecture.request_id}-architecture.svg`
                   ? "Exporting..."
                   : "Download SVG"}
               </button>
@@ -897,14 +968,19 @@ export function ArchitectureBoard({
                 className="primary-button"
                 disabled={Boolean(exporting)}
                 onClick={() =>
-                  exportSvg(`${architecture.request_id}-visio-import.svg`)
+                  exportSvg(`${activeArchitecture.request_id}-visio-import.svg`)
                 }
                 type="button"
               >
-                {exporting === `${architecture.request_id}-visio-import.svg`
+                {exporting === `${activeArchitecture.request_id}-visio-import.svg`
                   ? "Exporting..."
                   : "Visio Import SVG"}
               </button>
+              {!readOnly && onServicesChange ? (
+                <button className="secondary-button" onClick={addServiceFromCanvas} type="button">
+                  Add Component
+                </button>
+              ) : null}
             </div>
           </>
         ) : null}
@@ -1014,7 +1090,18 @@ export function ArchitectureBoard({
           {nodes.map((node) => (
             <g
               key={node.id}
-              className={node.locked ? "canvas-node is-locked" : "canvas-node"}
+              className={
+                node.locked
+                  ? "canvas-node is-locked"
+                  : selectedNodeId === node.id
+                    ? "canvas-node is-selected"
+                    : "canvas-node"
+              }
+              onClick={() => {
+                if (!node.locked && !readOnly) {
+                  setSelectedNodeId(node.id);
+                }
+              }}
               onPointerDown={(event) => handlePointerDown(event, node)}
               style={{ cursor: readOnly || node.locked ? "default" : "grab" }}
             >
@@ -1083,6 +1170,100 @@ export function ArchitectureBoard({
               </div>
             ))}
         </div>
+      ) : null}
+
+      {!readOnly && onServicesChange ? (
+        <section className="board-inspector">
+          <div className="compact-section-head">
+            <div>
+              <p className="eyebrow">Canvas Inspector</p>
+              <h2>
+                {selectedService ? `Edit ${selectedService.label}` : "Select a component"}
+              </h2>
+            </div>
+            {selectedService ? (
+              <button className="ghost-button" onClick={removeSelectedService} type="button">
+                Remove Component
+              </button>
+            ) : null}
+          </div>
+
+          {selectedService ? (
+            <div className="composer-form board-inspector-form">
+              <label className="field">
+                <span>Label</span>
+                <input
+                  className="text-input"
+                  onChange={(event) => updateSelectedService("label", event.target.value)}
+                  value={selectedService.label}
+                />
+              </label>
+              <label className="field">
+                <span>Cloud service</span>
+                <input
+                  className="text-input"
+                  onChange={(event) => updateSelectedService("cloud_service", event.target.value)}
+                  value={selectedService.cloud_service}
+                />
+              </label>
+              <label className="field">
+                <span>Category</span>
+                <input
+                  className="text-input"
+                  onChange={(event) => updateSelectedService("category", event.target.value)}
+                  value={selectedService.category}
+                />
+              </label>
+              <label className="field">
+                <span>Type</span>
+                <select
+                  className="select-input"
+                  onChange={(event) => updateSelectedService("type", event.target.value)}
+                  value={selectedService.type}
+                >
+                  {[
+                    "frontend",
+                    "authentication",
+                    "api_gateway",
+                    "backend_api",
+                    "database",
+                    "cache",
+                    "queue",
+                    "object_storage",
+                    "secrets",
+                    "private_network",
+                    "monitoring",
+                    "cdn",
+                    "waf",
+                    "integration",
+                    "analytics",
+                    "policy_engine",
+                    "security_analytics",
+                    "discovery",
+                    "cicd_pipeline",
+                  ].map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Rationale</span>
+                <textarea
+                  onChange={(event) => updateSelectedService("rationale", event.target.value)}
+                  rows={3}
+                  value={selectedService.rationale}
+                />
+              </label>
+            </div>
+          ) : (
+            <div className="empty-state subtle">
+              <p>Click a component in the canvas to edit it.</p>
+              <span>Add or remove components directly from the architecture workspace.</span>
+            </div>
+          )}
+        </section>
       ) : null}
     </section>
   );

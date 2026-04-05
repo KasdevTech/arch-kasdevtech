@@ -255,15 +255,24 @@ ARCHETYPE_OVERRIDES = {
 
 class CloudMappingEngine:
     def map(self, intent: ArchitectureIntent) -> tuple[list[ServiceMapping], list[Connection]]:
-        services = [self._map_component(intent, component) for component in intent.components]
+        counters: dict[str, int] = {}
+        services = [self._map_component(intent, component, counters) for component in intent.components]
         connections = self._build_connections(intent, services)
         return services, connections
 
-    def _map_component(self, intent: ArchitectureIntent, component: ParsedComponent) -> ServiceMapping:
+    def _map_component(
+        self,
+        intent: ArchitectureIntent,
+        component: ParsedComponent,
+        counters: dict[str, int],
+    ) -> ServiceMapping:
         catalog_key = self._catalog_key(component)
         template = self._resolve_template(intent.cloud.value, intent.archetype, catalog_key)
+        counters[component.type.value] = counters.get(component.type.value, 0) + 1
+        occurrence = counters[component.type.value]
+        service_id = component.type.value if occurrence == 1 else f"{component.type.value}_{occurrence}"
         return ServiceMapping(
-            id=component.type.value,
+            id=service_id,
             type=component.type,
             label=component.label,
             cloud_service=template["service"],
@@ -293,7 +302,7 @@ class CloudMappingEngine:
         intent: ArchitectureIntent,
         services: list[ServiceMapping],
     ) -> list[Connection]:
-        service_ids = {service.id for service in services}
+        service_ids = self._service_ids_by_type(services)
         if intent.archetype == SolutionArchetype.ai_security_and_compliance:
             return self._build_ai_governance_connections(service_ids)
         if intent.archetype == SolutionArchetype.ai_application_stack:
@@ -304,7 +313,7 @@ class CloudMappingEngine:
             return self._build_internal_portal_connections(service_ids)
         return self._build_default_connections(service_ids)
 
-    def _build_default_connections(self, service_ids: set[str]) -> list[Connection]:
+    def _build_default_connections(self, service_ids: dict[str, str]) -> list[Connection]:
         connections: list[Connection] = []
 
         entry_target = self._first_present(service_ids, ["waf", "cdn", "frontend", "api_gateway", "backend_api"])
@@ -312,36 +321,36 @@ class CloudMappingEngine:
             connections.append(Connection(source="users", target=entry_target, label="HTTPS"))
         if "waf" in service_ids:
             downstream = self._first_present(service_ids, ["cdn", "frontend", "api_gateway", "backend_api"])
-            if downstream and downstream != "waf":
-                connections.append(Connection(source="waf", target=downstream, label="Filtered traffic"))
+            if downstream and downstream != service_ids["waf"]:
+                connections.append(Connection(source=service_ids["waf"], target=downstream, label="Filtered traffic"))
         if "cdn" in service_ids and "frontend" in service_ids:
-            connections.append(Connection(source="cdn", target="frontend", label="Static assets"))
+            connections.append(Connection(source=service_ids["cdn"], target=service_ids["frontend"], label="Static assets"))
         if "frontend" in service_ids and "authentication" in service_ids:
-            connections.append(Connection(source="frontend", target="authentication", label="Sign-in"))
+            connections.append(Connection(source=service_ids["frontend"], target=service_ids["authentication"], label="Sign-in"))
         if "frontend" in service_ids and "api_gateway" in service_ids:
-            connections.append(Connection(source="frontend", target="api_gateway", label="API calls"))
+            connections.append(Connection(source=service_ids["frontend"], target=service_ids["api_gateway"], label="API calls"))
         elif "frontend" in service_ids and "backend_api" in service_ids:
-            connections.append(Connection(source="frontend", target="backend_api", label="API calls"))
+            connections.append(Connection(source=service_ids["frontend"], target=service_ids["backend_api"], label="API calls"))
         if "api_gateway" in service_ids and "backend_api" in service_ids:
-            connections.append(Connection(source="api_gateway", target="backend_api", label="Routed traffic"))
+            connections.append(Connection(source=service_ids["api_gateway"], target=service_ids["backend_api"], label="Routed traffic"))
         if "backend_api" in service_ids and "cache" in service_ids:
-            connections.append(Connection(source="backend_api", target="cache", label="Hot reads"))
+            connections.append(Connection(source=service_ids["backend_api"], target=service_ids["cache"], label="Hot reads"))
         if "backend_api" in service_ids and "database" in service_ids:
-            connections.append(Connection(source="backend_api", target="database", label="Reads/Writes"))
+            connections.append(Connection(source=service_ids["backend_api"], target=service_ids["database"], label="Reads/Writes"))
         if "backend_api" in service_ids and "queue" in service_ids:
-            connections.append(Connection(source="backend_api", target="queue", label="Async jobs"))
+            connections.append(Connection(source=service_ids["backend_api"], target=service_ids["queue"], label="Async jobs"))
         if "backend_api" in service_ids and "object_storage" in service_ids:
-            connections.append(Connection(source="backend_api", target="object_storage", label="Files"))
+            connections.append(Connection(source=service_ids["backend_api"], target=service_ids["object_storage"], label="Files"))
         if "backend_api" in service_ids and "secrets" in service_ids:
-            connections.append(Connection(source="backend_api", target="secrets", label="Secrets"))
+            connections.append(Connection(source=service_ids["backend_api"], target=service_ids["secrets"], label="Secrets"))
         if "private_network" in service_ids:
             for private_target in ["backend_api", "database", "cache", "queue", "object_storage", "secrets", "integration"]:
                 if private_target in service_ids:
-                    connections.append(Connection(source="private_network", target=private_target, label="Private access", dashed=True))
+                    connections.append(Connection(source=service_ids["private_network"], target=service_ids[private_target], label="Private access", dashed=True))
         if "monitoring" in service_ids:
             for observed_service in ["waf", "api_gateway", "backend_api", "database", "queue", "cache", "secrets", "cicd_pipeline"]:
                 if observed_service in service_ids:
-                    connections.append(Connection(source="monitoring", target=observed_service, label="Telemetry", dashed=True))
+                    connections.append(Connection(source=service_ids["monitoring"], target=service_ids[observed_service], label="Telemetry", dashed=True))
         if "cicd_pipeline" in service_ids:
             for deploy_target, label in [
                 ("frontend", "Deploys"),
@@ -349,82 +358,82 @@ class CloudMappingEngine:
                 ("integration", "Workflow delivery"),
             ]:
                 if deploy_target in service_ids:
-                    connections.append(Connection(source="cicd_pipeline", target=deploy_target, label=label, dashed=True))
+                    connections.append(Connection(source=service_ids["cicd_pipeline"], target=service_ids[deploy_target], label=label, dashed=True))
         return connections
 
-    def _build_ai_governance_connections(self, service_ids: set[str]) -> list[Connection]:
+    def _build_ai_governance_connections(self, service_ids: dict[str, str]) -> list[Connection]:
         connections = self._build_default_connections(service_ids)
         first = self._first_present(service_ids, ["frontend", "api_gateway", "backend_api"])
         if first and not any(c.source == "users" and c.target == first for c in connections):
             connections.append(Connection(source="users", target=first, label="HTTPS"))
         if "frontend" in service_ids and "analytics" in service_ids:
-            connections.append(Connection(source="frontend", target="analytics", label="Findings"))
+            connections.append(Connection(source=service_ids["frontend"], target=service_ids["analytics"], label="Findings"))
         if "backend_api" in service_ids and "discovery" in service_ids:
-            connections.append(Connection(source="backend_api", target="discovery", label="Inventory scan"))
+            connections.append(Connection(source=service_ids["backend_api"], target=service_ids["discovery"], label="Inventory scan"))
         if "backend_api" in service_ids and "policy_engine" in service_ids:
-            connections.append(Connection(source="backend_api", target="policy_engine", label="Control evaluation"))
+            connections.append(Connection(source=service_ids["backend_api"], target=service_ids["policy_engine"], label="Control evaluation"))
         if "discovery" in service_ids and "policy_engine" in service_ids:
-            connections.append(Connection(source="discovery", target="policy_engine", label="Resource context"))
+            connections.append(Connection(source=service_ids["discovery"], target=service_ids["policy_engine"], label="Resource context"))
         if "policy_engine" in service_ids and "security_analytics" in service_ids:
-            connections.append(Connection(source="policy_engine", target="security_analytics", label="Findings"))
+            connections.append(Connection(source=service_ids["policy_engine"], target=service_ids["security_analytics"], label="Findings"))
         if "security_analytics" in service_ids and "analytics" in service_ids:
-            connections.append(Connection(source="security_analytics", target="analytics", label="Dashboards"))
+            connections.append(Connection(source=service_ids["security_analytics"], target=service_ids["analytics"], label="Dashboards"))
         if "backend_api" in service_ids and "object_storage" in service_ids:
-            connections.append(Connection(source="backend_api", target="object_storage", label="Evidence"))
+            connections.append(Connection(source=service_ids["backend_api"], target=service_ids["object_storage"], label="Evidence"))
         if "backend_api" in service_ids and "database" in service_ids:
-            connections.append(Connection(source="backend_api", target="database", label="Findings"))
+            connections.append(Connection(source=service_ids["backend_api"], target=service_ids["database"], label="Findings"))
         if "backend_api" in service_ids and "integration" in service_ids:
-            connections.append(Connection(source="backend_api", target="integration", label="Alerts"))
+            connections.append(Connection(source=service_ids["backend_api"], target=service_ids["integration"], label="Alerts"))
         if "policy_engine" in service_ids and "ai_model_gateway" in service_ids:
-            connections.append(Connection(source="policy_engine", target="ai_model_gateway", label="AI analysis", dashed=True))
+            connections.append(Connection(source=service_ids["policy_engine"], target=service_ids["ai_model_gateway"], label="AI analysis", dashed=True))
         return self._dedupe_connections(connections)
 
-    def _build_ai_application_connections(self, service_ids: set[str]) -> list[Connection]:
+    def _build_ai_application_connections(self, service_ids: dict[str, str]) -> list[Connection]:
         connections = self._build_default_connections(service_ids)
         if "backend_api" in service_ids and "ai_model_gateway" in service_ids:
-            connections.append(Connection(source="backend_api", target="ai_model_gateway", label="Model calls"))
+            connections.append(Connection(source=service_ids["backend_api"], target=service_ids["ai_model_gateway"], label="Model calls"))
         if "backend_api" in service_ids and "search" in service_ids:
-            connections.append(Connection(source="backend_api", target="search", label="Retrieval"))
+            connections.append(Connection(source=service_ids["backend_api"], target=service_ids["search"], label="Retrieval"))
         if "ml_platform" in service_ids and "ai_model_gateway" in service_ids:
-            connections.append(Connection(source="ml_platform", target="ai_model_gateway", label="Model lifecycle", dashed=True))
+            connections.append(Connection(source=service_ids["ml_platform"], target=service_ids["ai_model_gateway"], label="Model lifecycle", dashed=True))
         return self._dedupe_connections(connections)
 
-    def _build_data_platform_connections(self, service_ids: set[str]) -> list[Connection]:
+    def _build_data_platform_connections(self, service_ids: dict[str, str]) -> list[Connection]:
         connections: list[Connection] = []
         first = self._first_present(service_ids, ["integration", "api_gateway", "backend_api"])
         if first:
             connections.append(Connection(source="users", target=first, label="Data requests"))
         if "integration" in service_ids and "queue" in service_ids:
-            connections.append(Connection(source="integration", target="queue", label="Ingestion"))
+            connections.append(Connection(source=service_ids["integration"], target=service_ids["queue"], label="Ingestion"))
         if "queue" in service_ids and "backend_api" in service_ids:
-            connections.append(Connection(source="queue", target="backend_api", label="Processing"))
+            connections.append(Connection(source=service_ids["queue"], target=service_ids["backend_api"], label="Processing"))
         if "backend_api" in service_ids and "object_storage" in service_ids:
-            connections.append(Connection(source="backend_api", target="object_storage", label="Raw/curated data"))
+            connections.append(Connection(source=service_ids["backend_api"], target=service_ids["object_storage"], label="Raw/curated data"))
         if "object_storage" in service_ids and "analytics" in service_ids:
-            connections.append(Connection(source="object_storage", target="analytics", label="Reporting"))
+            connections.append(Connection(source=service_ids["object_storage"], target=service_ids["analytics"], label="Reporting"))
         if "backend_api" in service_ids and "database" in service_ids:
-            connections.append(Connection(source="backend_api", target="database", label="Metadata"))
+            connections.append(Connection(source=service_ids["backend_api"], target=service_ids["database"], label="Metadata"))
         if "monitoring" in service_ids:
             for observed_service in ["integration", "queue", "backend_api", "object_storage", "analytics"]:
                 if observed_service in service_ids:
-                    connections.append(Connection(source="monitoring", target=observed_service, label="Telemetry", dashed=True))
+                    connections.append(Connection(source=service_ids["monitoring"], target=service_ids[observed_service], label="Telemetry", dashed=True))
         return connections
 
-    def _build_internal_portal_connections(self, service_ids: set[str]) -> list[Connection]:
+    def _build_internal_portal_connections(self, service_ids: dict[str, str]) -> list[Connection]:
         connections = self._build_default_connections(service_ids)
         if "frontend" in service_ids and "backend_api" in service_ids and not any(
-            connection.source == "frontend" and connection.target == "backend_api"
+            connection.source == service_ids["frontend"] and connection.target == service_ids["backend_api"]
             for connection in connections
         ):
-            connections.append(Connection(source="frontend", target="backend_api", label="Portal API"))
+            connections.append(Connection(source=service_ids["frontend"], target=service_ids["backend_api"], label="Portal API"))
         if "backend_api" in service_ids and "integration" in service_ids:
-            connections.append(Connection(source="backend_api", target="integration", label="Provisioning workflows"))
+            connections.append(Connection(source=service_ids["backend_api"], target=service_ids["integration"], label="Provisioning workflows"))
         if "backend_api" in service_ids and "policy_engine" in service_ids:
-            connections.append(Connection(source="backend_api", target="policy_engine", label="Golden-path policies"))
+            connections.append(Connection(source=service_ids["backend_api"], target=service_ids["policy_engine"], label="Golden-path policies"))
         if "integration" in service_ids and "database" in service_ids:
-            connections.append(Connection(source="integration", target="database", label="Catalog state"))
+            connections.append(Connection(source=service_ids["integration"], target=service_ids["database"], label="Catalog state"))
         if "cicd_pipeline" in service_ids and "policy_engine" in service_ids:
-            connections.append(Connection(source="cicd_pipeline", target="policy_engine", label="Policy checks", dashed=True))
+            connections.append(Connection(source=service_ids["cicd_pipeline"], target=service_ids["policy_engine"], label="Policy checks", dashed=True))
         return self._dedupe_connections(connections)
 
     def _dedupe_connections(self, connections: list[Connection]) -> list[Connection]:
@@ -437,8 +446,14 @@ class CloudMappingEngine:
                 seen.add(key)
         return deduped
 
-    def _first_present(self, service_ids: set[str], ordered_ids: list[str]) -> Optional[str]:
+    def _first_present(self, service_ids: dict[str, str], ordered_ids: list[str]) -> Optional[str]:
         for service_id in ordered_ids:
             if service_id in service_ids:
-                return service_id
+                return service_ids[service_id]
         return None
+
+    def _service_ids_by_type(self, services: list[ServiceMapping]) -> dict[str, str]:
+        service_ids: dict[str, str] = {}
+        for service in services:
+            service_ids.setdefault(service.type.value, service.id)
+        return service_ids

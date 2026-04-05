@@ -19,9 +19,10 @@ A full-stack MVP that turns a plain-English product idea into a cloud architectu
 - Native SVG architecture canvas with cloud imagery
 - Architecture explanation and next-step guidance
 - Security controls, resilience notes, operational guidance, and risk flags
-- Optional Terraform starter output
-- React frontend with dedicated overview, architecture, and code pages
-- FastAPI backend with a single generation endpoint
+- Deployable Terraform for the supported Azure resource set
+- React frontend with dedicated `Arch`, `Code`, and `Ship` workspaces
+- Backend-backed project persistence with version history and restore
+- FastAPI backend for generation, chat, project CRUD, history, restore, and Azure deploy/prepare flows
 
 ## Stack
 
@@ -37,6 +38,7 @@ backend/
     api/
     core/
     services/
+  data/
 frontend/
   src/
 docs/
@@ -53,7 +55,7 @@ flowchart LR
     D --> E[Cloud Mapping Engine]
     E --> F[Diagram + Explanation + IaC Builders]
     F --> G[Architecture Response]
-    G --> H[Frontend Pages + Chat + Local Project Library]
+    G --> H[Frontend Pages + Chat + Backend Project Store]
 ```
 
 ## Run The Backend
@@ -82,9 +84,9 @@ Project routes:
 - `/` marketing landing page
 - `/app/studio` architecture creation workspace
 - `/app/projects` saved library
-- `/app/projects/:projectId/overview` project report
-- `/app/projects/:projectId/architecture` visual architecture canvas
+- `/app/projects/:projectId/arch` architecture workspace
 - `/app/projects/:projectId/code` infrastructure code page
+- `/app/projects/:projectId/ship` Azure deploy workspace
 
 ## Environment Variables
 
@@ -111,7 +113,7 @@ cp frontend/.env.example frontend/.env
 
 - `VITE_API_URL=http://localhost:8000/api/v1`
 
-## API Example
+## API Examples
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/architectures/generate \
@@ -123,11 +125,49 @@ curl -X POST http://localhost:8000/api/v1/architectures/generate \
   }'
 ```
 
+```bash
+curl http://localhost:8000/api/v1/projects
+```
+
+```bash
+curl -X POST http://localhost:8000/api/v1/architectures/deploy/azure/prepare \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "demo-project",
+    "project_title": "Customer Platform",
+    "cloud": "azure",
+    "profile": {
+      "auth_mode": "service_principal",
+      "tenant_id": "tenant-id",
+      "subscription_id": "subscription-id",
+      "client_id": "client-id",
+      "client_secret": "client-secret",
+      "resource_group": "demo-rg",
+      "location": "eastus",
+      "deployment_name": "demo-deploy"
+    },
+    "preferences": {
+      "workload_name": "Customer Platform",
+      "environments": ["dev", "staging", "prod"],
+      "availability_tier": "high_availability",
+      "data_sensitivity": "confidential",
+      "network_exposure": "public",
+      "user_scale": "business",
+      "compliance_frameworks": [],
+      "multi_region": false,
+      "disaster_recovery": true,
+      "tenancy": "pooled_multi_tenant"
+    },
+    "services": []
+  }'
+```
+
 ## Notes
 
-- The MVP is intentionally deterministic after intent parsing so service mapping stays stable.
-- The current UI supports enterprise-oriented inputs such as compliance targets, multi-region posture, DR, tenancy, and data sensitivity.
-- The Terraform output is a starter scaffold, not production-ready infrastructure.
+- The engine stays deterministic after intent parsing so service mapping and deploy artifacts stay stable.
+- Projects now persist through backend APIs, with version history and restore support.
+- `Ship` includes a backend prepare step so users can inspect the deployable inventory before apply.
+- The generated Terraform is deployable for the currently supported Azure resource subset and still marks unsupported services clearly.
 - The backend falls back to heuristic parsing automatically if the selected LLM backend is unavailable or returns invalid JSON.
 
 ## Deployment

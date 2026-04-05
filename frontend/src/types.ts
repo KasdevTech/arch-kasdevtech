@@ -92,6 +92,68 @@ export interface ArchitectureRetrievalMatch {
   score: number;
 }
 
+export type AzureAuthMode = "tenant_user" | "service_principal";
+
+export interface AzureDeploymentProfile {
+  auth_mode: AzureAuthMode;
+  tenant_id: string;
+  subscription_id: string;
+  client_id?: string;
+  client_secret?: string;
+  resource_group: string;
+  location: string;
+  deployment_name: string;
+}
+
+export interface DeploymentRun {
+  status: "idle" | "prepared" | "deploying" | "ready" | "deployed" | "failed";
+  summary: string;
+  generated_at: string;
+  command_preview: string[];
+}
+
+export interface AzureDeploymentPlanItem {
+  service_id: string;
+  title: string;
+  resource_type: string;
+  location: string;
+  action: string;
+  supported: boolean;
+  note?: string | null;
+}
+
+export interface AzureDeploymentRequest {
+  project_id: string;
+  project_title: string;
+  cloud: CloudProvider;
+  profile: AzureDeploymentProfile;
+  preferences: ArchitecturePreferences;
+  services: ServiceMapping[];
+}
+
+export interface AzureDeploymentPrepareResponse {
+  status: string;
+  summary: string;
+  resource_group: string;
+  location: string;
+  deployable_count: number;
+  skipped_count: number;
+  plan_items: AzureDeploymentPlanItem[];
+  command_preview: string[];
+  warnings: string[];
+}
+
+export interface AzureDeploymentResponse {
+  status: string;
+  resource_group: string;
+  location: string;
+  deployment_name: string;
+  logs: string[];
+  deployed_services: string[];
+  skipped_services: string[];
+  deployed_at: string;
+}
+
 export interface CanvasPosition {
   x: number;
   y: number;
@@ -128,6 +190,23 @@ export interface ArchitectureResponse {
   iac_template?: string | null;
   source_request?: ArchitectureRequest;
   canvas_layout?: CanvasLayout;
+  azure_deployment_profile?: AzureDeploymentProfile;
+  deployment_run?: DeploymentRun | null;
+}
+
+export interface ProjectVersionSummary {
+  version_id: string;
+  version_number: number;
+  saved_at: string;
+  title: string;
+  summary: string;
+  change_note?: string | null;
+}
+
+export interface ProjectHistoryResponse {
+  project_id: string;
+  current_version: number;
+  versions: ProjectVersionSummary[];
 }
 
 export type ChatRole = "user" | "assistant";

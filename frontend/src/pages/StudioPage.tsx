@@ -49,21 +49,27 @@ export function StudioPage() {
 
     try {
       const response = await generateArchitecture(payload);
+      const nextTitle =
+        payload.preferences.workload_name?.trim() || response.title;
       const persistedProject: ArchitectureResponse = editingProject
         ? {
             ...response,
+            title: nextTitle,
             request_id: editingProject.request_id,
             source_request: payload,
           }
         : {
             ...response,
+            title: nextTitle,
             source_request: payload,
           };
-      startTransition(() => {
-        saveProject(persistedProject);
-      });
+      const savedProject = await saveProject(
+        persistedProject,
+        editingProject ? "Updated project intake" : "Created project",
+      );
+      startTransition(() => undefined);
       navigate(
-        `/app/projects/${persistedProject.request_id}/overview`,
+        `/app/projects/${savedProject.request_id}/arch`,
       );
     } catch (submitError) {
       setError(
@@ -78,37 +84,63 @@ export function StudioPage() {
 
   return (
     <div className="studio-grid">
-      <ArchitectureComposer
-        error={error}
-        initialRequest={initialRequest}
-        loading={loading}
-        mode={editingProject ? "edit" : "create"}
-        onGenerate={handleGenerate}
-        presetRequest={editingProject ? undefined : selectedTemplate?.request}
-      />
+      <section className="card panel studio-panel">
+        <div className="studio-stepper">
+          <div className="studio-step active">
+            <span>01</span>
+            <strong>Project</strong>
+          </div>
+          <div className="studio-step-divider" />
+          <div className="studio-step">
+            <span>02</span>
+            <strong>Cloud</strong>
+          </div>
+          <div className="studio-step-divider" />
+          <div className="studio-step">
+            <span>03</span>
+            <strong>Generate</strong>
+          </div>
+        </div>
+
+        <div className="studio-panel-body">
+          <ArchitectureComposer
+            error={error}
+            initialRequest={initialRequest}
+            loading={loading}
+            mode={editingProject ? "edit" : "create"}
+            onGenerate={handleGenerate}
+            presetRequest={editingProject ? undefined : selectedTemplate?.request}
+          />
+        </div>
+      </section>
 
       <div className="page-stack">
         <section className="card panel">
-          <div className="section-heading">
-            <p className="eyebrow">Studio Notes</p>
-            <h2>
-              {editingProject
-                ? `Editing ${editingProject.title}`
-                : "What this workspace now does"}
-            </h2>
+          <div className="compact-section-head">
+            <div>
+              <p className="eyebrow">Project</p>
+              <h2>{editingProject ? `Editing ${editingProject.title}` : "Set up project profile"}</h2>
+            </div>
           </div>
-          <ul className="detail-list">
-            <li>Creates a saved project instead of rendering everything inline on the same page.</li>
-            <li>Routes every generated architecture into its own detail page.</li>
-            <li>Preserves a library of projects in local storage for repeat review.</li>
-            <li>Separates marketing, creation, library, and report surfaces like a SaaS app.</li>
-            <li>Supports editing an existing project and saving back into the same project record.</li>
-          </ul>
+          <div className="studio-helper-stack compact">
+            <article className="studio-helper-card">
+              <strong>Name</strong>
+              <p>Use a clear project name.</p>
+            </article>
+            <article className="studio-helper-card">
+              <strong>Cloud</strong>
+              <p>Choose the target platform.</p>
+            </article>
+            <article className="studio-helper-card">
+              <strong>Brief</strong>
+              <p>Describe core components, scale, and constraints.</p>
+            </article>
+          </div>
           {editingProject ? (
             <div className="action-row">
               <Link
                 className="button-link secondary"
-                to={`/app/projects/${editingProject.request_id}/overview`}
+                to={`/app/projects/${editingProject.request_id}/arch`}
               >
                 Cancel editing
               </Link>
@@ -118,18 +150,15 @@ export function StudioPage() {
 
         {!editingProject ? (
           <section className="card panel">
-            <div className="section-heading">
-              <p className="eyebrow">Blueprint Starters</p>
-              <h2>Start from enterprise-ready reference patterns</h2>
+            <div className="compact-section-head">
+              <div>
+                <p className="eyebrow">Template</p>
+                <h2>Starter patterns</h2>
+              </div>
             </div>
-            <p className="section-copy">
-              Pick a reference blueprint to prefill the studio with a realistic
-              enterprise workload, then tailor the prompt and controls before
-              generating your own project.
-            </p>
 
-            <div className="template-grid">
-              {ARCHITECTURE_TEMPLATES.map((template) => (
+            <div className="template-grid compact">
+              {ARCHITECTURE_TEMPLATES.slice(0, 3).map((template) => (
                 <article
                   key={template.id}
                   className={
@@ -140,7 +169,6 @@ export function StudioPage() {
                 >
                   <div className="project-card-head">
                     <div>
-                      <p className="eyebrow">Template</p>
                       <h3>{template.title}</h3>
                     </div>
                     <button
@@ -148,10 +176,9 @@ export function StudioPage() {
                       onClick={() => setSelectedTemplateId(template.id)}
                       type="button"
                     >
-                      Use template
+                      Select
                     </button>
                   </div>
-                  <p className="project-summary">{template.description}</p>
                   <div className="pill-row">
                     {template.tags.map((tag) => (
                       <span className="priority-pill" key={tag}>
@@ -176,9 +203,16 @@ export function StudioPage() {
         ) : null}
 
         <section className="card panel">
-          <div className="section-heading">
-            <p className="eyebrow">Recent Projects</p>
-            <h2>Continue from previous architecture packs</h2>
+          <div className="compact-section-head">
+            <div>
+              <p className="eyebrow">Recent</p>
+              <h2>Library</h2>
+            </div>
+            {projects.length > 0 ? (
+              <Link className="inline-link" to="/app/projects">
+                View all
+              </Link>
+            ) : null}
           </div>
 
           {projects.length > 0 ? (
@@ -193,36 +227,9 @@ export function StudioPage() {
           ) : (
             <div className="empty-state subtle">
               <p>No saved projects yet.</p>
-              <span>Your next generated architecture will appear here.</span>
+              <span>Your next project will appear here.</span>
             </div>
           )}
-
-          {projects.length > 0 ? (
-            <Link className="inline-link" to="/app/projects">
-              View full library
-            </Link>
-          ) : null}
-        </section>
-
-        <section className="card panel">
-          <div className="section-heading">
-            <p className="eyebrow">Enterprise Checklist</p>
-            <h2>What strong teams usually validate next</h2>
-          </div>
-          <div className="metric-grid">
-            <article className="metric-card">
-              <span>Platform controls</span>
-              <strong>Identity, secrets, network, audit</strong>
-            </article>
-            <article className="metric-card">
-              <span>Delivery readiness</span>
-              <strong>IaC modules, environments, DR posture</strong>
-            </article>
-            <article className="metric-card">
-              <span>Architecture review</span>
-              <strong>Risks, tradeoffs, and next-step actions</strong>
-            </article>
-          </div>
         </section>
       </div>
     </div>

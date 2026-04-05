@@ -1,10 +1,13 @@
 import { useDeferredValue, useState } from "react";
 import { VALUE_LABELS } from "../data/catalog";
-import type { ArchitectureResponse } from "../types";
+import type { ArchitectureResponse, ProjectHistoryResponse } from "../types";
 
 interface ArchitectureReportProps {
   architecture: ArchitectureResponse;
-  onDelete?: () => void;
+  history?: ProjectHistoryResponse | null;
+  restoringVersionId?: string | null;
+  onRestoreVersion?: (versionId: string) => Promise<void>;
+  onDelete?: () => void | Promise<void>;
 }
 
 function formatDate(value: string) {
@@ -19,6 +22,9 @@ function formatDate(value: string) {
 
 export function ArchitectureReport({
   architecture,
+  history,
+  restoringVersionId,
+  onRestoreVersion,
   onDelete,
 }: ArchitectureReportProps) {
   const deferredArchitecture = useDeferredValue(architecture);
@@ -192,6 +198,40 @@ export function ArchitectureReport({
             ))}
           </ul>
         </article>
+      </section>
+
+      <section className="card">
+        <div className="section-heading">
+          <p className="eyebrow">Versions</p>
+          <h2>Project history</h2>
+        </div>
+        {history && history.versions.length > 0 ? (
+          <div className="content-stack">
+            {history.versions.slice(0, 8).map((version) => (
+              <article key={version.version_id} className="narrative-block">
+                <div className="project-card-head">
+                  <h3>Version {version.version_number}</h3>
+                  {onRestoreVersion ? (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={restoringVersionId === version.version_id}
+                      onClick={() => onRestoreVersion(version.version_id)}
+                    >
+                      {restoringVersionId === version.version_id ? "Restoring..." : "Restore"}
+                    </button>
+                  ) : null}
+                </div>
+                <p>{version.change_note ?? version.summary}</p>
+                <p className="section-copy">Saved {formatDate(version.saved_at)}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="section-copy">
+            Version history will appear here as the project evolves.
+          </p>
+        )}
       </section>
 
       <section className="card">

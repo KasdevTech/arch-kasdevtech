@@ -1,22 +1,26 @@
 import type { ArchitectureResponse } from "../types";
 
-function extractModuleBlocks(template: string) {
+function extractComponentBlocks(template: string) {
   const matches = Array.from(
-    template.matchAll(/module "([^"]+)" \{[\s\S]*?\n\}/g),
+    template.matchAll(
+      /# --- Component: ([^|]+)\|\s*([^\n]+) ---\n([\s\S]*?)(?=\n# --- Component:|\n# --- Unsupported components|\n# Resource group bootstrap|\s*$)/g,
+    ),
   );
 
   return matches.map((match) => ({
-    id: match[1],
-    code: match[0],
+    id: match[1].trim(),
+    title: match[2].trim(),
+    code: match[3].trim(),
   }));
 }
 
 function extractFoundation(template: string) {
-  const firstModuleIndex = template.indexOf('\nmodule "');
-  if (firstModuleIndex === -1) {
+  const marker = "\n# --- Component:";
+  const firstComponentIndex = template.indexOf(marker);
+  if (firstComponentIndex === -1) {
     return template.trim();
   }
-  return template.slice(0, firstModuleIndex).trim();
+  return template.slice(0, firstComponentIndex).trim();
 }
 
 export function TerraformModulesPage({
@@ -38,22 +42,20 @@ export function TerraformModulesPage({
   }
 
   const foundation = extractFoundation(architecture.iac_template);
-  const modules = extractModuleBlocks(architecture.iac_template);
+  const components = extractComponentBlocks(architecture.iac_template);
 
   return (
     <div className="page-stack">
       <section className="card panel">
-        <div className="section-heading">
-          <p className="eyebrow">Code</p>
-          <h2>Per-component infrastructure page</h2>
-        </div>
-        <p className="section-copy">
-          Infrastructure code now lives on its own route, and each mapped
-          component gets its own module section so the implementation view feels
-          like a real product page rather than a giant block at the bottom of
-          the report.
-        </p>
-      </section>
+          <div className="section-heading">
+            <p className="eyebrow">Code</p>
+            <h2>Deployable infrastructure code</h2>
+          </div>
+          <p className="section-copy">
+            This page shows the Terraform bundle that Ship applies for supported
+            Azure resources, with each generated component separated for review.
+          </p>
+        </section>
 
       <section className="terraform-grid">
         <article className="card terraform-card">
@@ -66,22 +68,22 @@ export function TerraformModulesPage({
           </pre>
         </article>
 
-        {modules.map((module) => {
+        {components.map((component) => {
           const service = architecture.services.find(
-            (item) => item.id === module.id,
+            (item) => item.id === component.id,
           );
 
           return (
-            <article key={module.id} className="card terraform-card">
+            <article key={component.id} className="card terraform-card">
               <div className="section-heading">
-                <p className="eyebrow">Component Module</p>
-                <h2>{service?.cloud_service ?? module.id}</h2>
+                <p className="eyebrow">Component</p>
+                <h2>{service?.cloud_service ?? component.title}</h2>
               </div>
               <p className="section-copy">
-                {service?.rationale ?? "Infrastructure module for this component."}
+                {service?.rationale ?? "Deployable Terraform for this component."}
               </p>
               <pre className="code-block">
-                <code>{module.code}</code>
+                <code>{component.code}</code>
               </pre>
             </article>
           );

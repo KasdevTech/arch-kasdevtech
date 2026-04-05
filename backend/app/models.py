@@ -193,6 +193,10 @@ class ArchitectureResponse(BaseModel):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
     )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+    )
+    version_number: int = 1
     title: str
     summary: str
     cloud: CloudProvider
@@ -217,6 +221,99 @@ class ArchitectureResponse(BaseModel):
     validator_findings: list[ArchitectureValidationFinding] = Field(default_factory=list)
     mermaid: str
     iac_template: Optional[str] = None
+
+
+class AzureAuthenticationMode(str, Enum):
+    tenant_user = "tenant_user"
+    service_principal = "service_principal"
+
+
+class AzureDeploymentProfile(BaseModel):
+    auth_mode: AzureAuthenticationMode = AzureAuthenticationMode.service_principal
+    tenant_id: str = Field(min_length=3, max_length=120)
+    subscription_id: str = Field(min_length=3, max_length=120)
+    client_id: Optional[str] = Field(default=None, max_length=120)
+    client_secret: Optional[str] = Field(default=None, max_length=500)
+    resource_group: str = Field(min_length=2, max_length=120)
+    location: str = Field(min_length=2, max_length=120)
+    deployment_name: str = Field(min_length=2, max_length=120)
+
+
+class AzureDeploymentRequest(BaseModel):
+    project_id: str = Field(min_length=3, max_length=120)
+    project_title: str = Field(min_length=2, max_length=200)
+    cloud: CloudProvider = CloudProvider.azure
+    profile: AzureDeploymentProfile
+    preferences: ArchitecturePreferences = Field(default_factory=ArchitecturePreferences)
+    services: list[ServiceMapping] = Field(default_factory=list)
+
+
+class AzureDeploymentPlanItem(BaseModel):
+    service_id: str
+    title: str
+    resource_type: str
+    location: str
+    action: str
+    supported: bool = True
+    note: Optional[str] = None
+
+
+class AzureDeploymentPrepareResponse(BaseModel):
+    status: str
+    summary: str
+    resource_group: str
+    location: str
+    deployable_count: int
+    skipped_count: int
+    plan_items: list[AzureDeploymentPlanItem] = Field(default_factory=list)
+    command_preview: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class AzureDeploymentResponse(BaseModel):
+    status: str
+    resource_group: str
+    location: str
+    deployment_name: str
+    logs: list[str] = Field(default_factory=list)
+    deployed_services: list[str] = Field(default_factory=list)
+    skipped_services: list[str] = Field(default_factory=list)
+    deployed_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+    )
+
+
+class ProjectSaveRequest(BaseModel):
+    architecture: ArchitectureResponse
+    change_note: Optional[str] = Field(default=None, max_length=240)
+
+
+class ProjectVersionSummary(BaseModel):
+    version_id: str
+    version_number: int
+    saved_at: datetime
+    title: str
+    summary: str
+    change_note: Optional[str] = None
+
+
+class ProjectHistoryResponse(BaseModel):
+    project_id: str
+    current_version: int
+    versions: list[ProjectVersionSummary] = Field(default_factory=list)
+
+
+class CanvasLayoutUpdateRequest(BaseModel):
+    canvas_layout: dict[str, dict[str, float]]
+
+
+class DeploymentProfileUpdateRequest(BaseModel):
+    profile: AzureDeploymentProfile
+    run: Optional[dict] = None
+
+
+class ArchitectureRebuildRequest(BaseModel):
+    architecture: ArchitectureResponse
 
 
 class ChatRole(str, Enum):

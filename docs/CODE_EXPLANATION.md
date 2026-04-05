@@ -48,11 +48,31 @@ Endpoints:
 
 - `/architectures/generate`
 - `/architectures/chat`
+- `/architectures/rebuild`
+- `/architectures/deploy/azure/prepare`
+- `/architectures/deploy/azure`
 
 Pattern:
 
 - thin controller layer
 - push business logic into services
+
+### [api/project_routes.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/api/project_routes.py)
+
+Purpose:
+
+- defines backend project CRUD and history endpoints
+
+Endpoints:
+
+- `/projects`
+- `/projects/:id`
+- `/projects/:id/history`
+- `/projects/:id/restore/:versionId`
+
+Why it matters:
+
+- this is what turns the product from browser-local storage into a backend-backed workspace
 
 ### [models.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/models.py)
 
@@ -66,6 +86,7 @@ Main groups:
 - request payloads
 - parsed intent objects
 - final architecture response objects
+- project persistence and history objects
 - chat request/response models
 
 Why it matters:
@@ -189,6 +210,24 @@ What it adds:
 - matched pattern title
 - findings and recommendations
 
+### [services/project_store.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/services/project_store.py)
+
+Purpose:
+
+- stores projects and version history on the backend
+
+How it works:
+
+- JSON-backed storage file under `backend/data/projects.json`
+- current project snapshot per project id
+- append-only version list for saved changes
+- restore support for older versions
+- metadata-only updates for canvas layout and deployment profile
+
+Why it matters:
+
+- gives the frontend a real workspace backend without bringing in a full database/ORM yet
+
 ### [services/diagram_service.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/services/diagram_service.py)
 
 Purpose:
@@ -218,6 +257,19 @@ Also produces:
 
 - topology highlights
 - security controls
+
+### [services/deployment_service.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/services/deployment_service.py)
+
+Purpose:
+
+- prepares deployment plans and executes Terraform-first Azure deployment
+
+Key techniques:
+
+- per-service support matrix
+- region-aware plan items such as Static Web App region fallback
+- fresh Terraform regeneration from the live project model before apply
+- command log capture for the Ship console
 - resilience notes
 - operational controls
 - risk flags

@@ -37,13 +37,14 @@ flowchart LR
     INTENT --> MAP[Cloud Mapping Engine]
     MAP --> DIAG[Diagram Builder]
     MAP --> EXPLAIN[Explanation Builder]
-    MAP --> IAC[Terraform Starter Builder]
+    MAP --> IAC[Terraform Builder]
 
     DIAG --> RESP[Architecture Response]
     EXPLAIN --> RESP
     IAC --> RESP
     RESP --> FE
-    FE --> STORE[Local Project Store]
+    FE --> STORE[Backend Project Store]
+    FE --> SHIP[Ship Prepare + Deploy]
 ```
 
 ## 3. End-to-End User Flow
@@ -101,7 +102,7 @@ sequenceDiagram
 
     API-->>Widget: chat response
     Widget->>Widget: Render inline diagram if architecture exists
-    Widget->>Widget: Save project to local library
+    Widget->>API: Save project snapshot to backend store
 ```
 
 ## 4. Backend Design
@@ -116,8 +117,22 @@ Endpoints:
 
 - `POST /api/v1/architectures/generate`
   - Generates a full architecture from a structured request.
+- `POST /api/v1/architectures/rebuild`
+  - Rebuilds architecture, explanation, and IaC from edited services.
 - `POST /api/v1/architectures/chat`
   - Handles conversational copilot messages.
+- `POST /api/v1/architectures/deploy/azure/prepare`
+  - Prepares a deployable inventory and command preview for Ship.
+- `POST /api/v1/architectures/deploy/azure`
+  - Executes Terraform-first Azure deployment for the supported resource set.
+- `GET /api/v1/projects`
+  - Lists backend-backed projects.
+- `PUT /api/v1/projects/:id`
+  - Saves the current project and creates a version snapshot.
+- `GET /api/v1/projects/:id/history`
+  - Returns version history for the project.
+- `POST /api/v1/projects/:id/restore/:versionId`
+  - Restores a prior version as the current project state.
 
 This layer is intentionally thin. It only validates request/response types and delegates to services.
 
@@ -166,6 +181,22 @@ Pipeline inside `generate()`:
 7. Return one normalized response object
 
 This service keeps the architecture generation path composable and testable.
+
+### 4.3a Project Store
+
+File: [project_store.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/services/project_store.py)
+
+This service adds backend persistence and version history.
+
+It handles:
+
+- listing and loading projects
+- saving a project snapshot
+- tracking versions
+- restoring an earlier version
+- metadata updates for canvas layout and deployment profile
+
+The current persistence layer uses a JSON-backed store under [backend/data](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/data). It is intentionally simple, but it moves the product from browser-only storage to a real backend-backed project workspace.
 
 ### 4.4 Intent Parser
 
@@ -306,12 +337,30 @@ Examples of checks:
 
 File: [iac_service.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/services/iac_service.py)
 
-This produces a starter Terraform scaffold based on the mapped services.
+This produces Terraform based on the mapped services.
 
 Important note:
 
-- it is intentionally a starter, not production-grade IaC
-- it is designed to help users move from architecture idea to implementation direction
+- it is deployable for the supported Azure resource set
+- unsupported services are still called out clearly in comments
+- it is generated from the same architecture model used by `Arch` and `Ship`
+
+### 4.8a Ship Prepare And Deploy
+
+File: [deployment_service.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/services/deployment_service.py)
+
+`Ship` now has two backend stages:
+
+- `prepare`
+  - builds a per-resource deployment inventory
+  - marks resources as deployable or skipped
+  - shows target region and notes such as Static Web App region fallback
+- `deploy`
+  - creates the resource group
+  - regenerates fresh Terraform from the live project
+  - runs `terraform init`, `plan`, and `apply`
+
+This keeps the deployment path aligned with the actual generated code rather than using a disconnected CLI-only flow.
 
 ### 4.9 Conversational Copilot
 
@@ -362,9 +411,9 @@ Main routes:
 - `/`
 - `/app/studio`
 - `/app/projects`
-- `/app/projects/:projectId/overview`
-- `/app/projects/:projectId/architecture`
+- `/app/projects/:projectId/arch`
 - `/app/projects/:projectId/code`
+- `/app/projects/:projectId/ship`
 
 Global UI:
 
@@ -396,26 +445,28 @@ Technique used:
 - reusable preference update helpers
 - quick prompt shortcuts
 
-### 5.3 Local Project Store
+### 5.3 Backend Project Store
 
 File: [ArchitectureStore.tsx](/Users/kasisureshdevarajugattu/Coding/AI-Arch/frontend/src/context/ArchitectureStore.tsx)
 
-Current persistence is browser-local.
+The frontend store is now backend-first with local fallback.
 
 It stores:
 
 - generated projects
 - updated canvas layouts
+- deployment profiles and deployment runs
+- version history loading and restore actions
 
 Why it exists:
 
-- quick MVP persistence
-- no backend database needed yet
-- saved architecture browsing/editing feels SaaS-like
+- gives the frontend one project API abstraction
+- keeps the app responsive with optimistic updates
+- allows migration from old local-only projects into the backend store
 
-Important limitation:
+Current limitation:
 
-- projects are not shared across devices/users yet
+- the backend store is JSON-backed, not database-backed yet
 
 ### 5.4 Architecture Board
 
@@ -464,11 +515,12 @@ This widget:
 - keeps chat available everywhere
 - persists chat thread locally
 - renders generated architecture inline inside the conversation
-- saves generated architectures to the project library
+- saves generated architectures into the backend project library
 
 Technique used:
 
 - localStorage-backed session persistence
+- backend-backed project persistence
 - optimistic local thread updates
 - Enter-to-send interaction
 - inline architecture rendering using the same board component
@@ -542,7 +594,7 @@ That single response shape powers:
 - canvas page
 - code page
 - chat inline rendering
-- local project persistence
+- backend project persistence
 
 ### 6.5 Multi-Cloud Catalog Mapping
 
@@ -560,22 +612,22 @@ This product is a strong advanced MVP, but not enterprise-complete yet.
 
 Known gaps:
 
-- project persistence is localStorage-only
 - no database-backed project workspace yet
 - no authentication or RBAC
 - no shared teams/organizations
-- no project approval/version workflow
-- Terraform output is starter-level
+- no project approval workflow yet
+- the project store is JSON-backed rather than DB-backed
+- direct deployment only covers the supported Azure resource subset
 - some icon coverage and layout tuning can still improve
 
 ## 8. Recommended Next Technical Steps
 
-1. Add database-backed projects and users
+1. Move project persistence from JSON storage to a real database
 2. Add authentication and tenant boundaries
-3. Add version history and approvals
+3. Add approval workflow on top of the new version history
 4. Add background export pipeline for PNG/SVG/Draw.io artifacts
-5. Add tests for intent parsing, mapping, and chat routing
-6. Add more archetype packs for additional domains
+5. Add tests for intent parsing, mapping, deploy prepare, and chat routing
+6. Add more deployable resource coverage for Azure and then extend Ship to AWS/GCP
 
 ## 9. File Guide
 

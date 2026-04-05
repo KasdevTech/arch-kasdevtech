@@ -178,9 +178,10 @@ export function ArchitectChatWidget() {
             preferences,
           },
         };
-        startTransition(() => {
-          saveProject(persistedArchitecture as ArchitectureResponse);
-        });
+        persistedArchitecture = await saveProject(
+          persistedArchitecture as ArchitectureResponse,
+          "Created from architecture copilot chat",
+        );
       }
 
       setMessages((current) => [
@@ -357,7 +358,7 @@ export function ArchitectChatWidget() {
                       <div className="action-row">
                         <Link
                           className="button-link secondary"
-                          to={`/app/projects/${message.architecture.request_id}/overview`}
+                          to={`/app/projects/${message.architecture.request_id}/arch`}
                         >
                           Open project
                         </Link>

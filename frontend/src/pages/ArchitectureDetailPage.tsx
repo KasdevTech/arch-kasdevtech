@@ -20,12 +20,12 @@ export function ArchitectureDetailPage() {
 
   const architecture = projects.find((item) => item.request_id === projectId);
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!architecture) {
       return;
     }
 
-    removeProject(architecture.request_id);
+    await removeProject(architecture.request_id);
     navigate("/app/projects");
   }
 
@@ -33,7 +33,7 @@ export function ArchitectureDetailPage() {
     return (
       <section className="card empty-card">
         <p className="eyebrow">Loading</p>
-        <h2>Loading architecture report...</h2>
+        <h2>Loading project...</h2>
       </section>
     );
   }
@@ -42,16 +42,13 @@ export function ArchitectureDetailPage() {
     return (
       <section className="card empty-card">
         <p className="eyebrow">Not Found</p>
-        <h2>This architecture project does not exist in the local library.</h2>
-        <p>
-          It may have been deleted, or the workspace has not saved it yet.
-        </p>
+        <h2>This project does not exist in the local library.</h2>
         <div className="action-row">
           <Link className="button-link secondary" to="/app/projects">
             Back to Library
           </Link>
           <Link className="button-link primary" to="/app/studio">
-            Create New Architecture
+            Create Project
           </Link>
         </div>
       </section>
@@ -62,11 +59,10 @@ export function ArchitectureDetailPage() {
     <div className="page-stack">
       <section className="page-header">
         <div>
-          <p className="eyebrow">Project Report</p>
+          <p className="eyebrow">Project</p>
           <h2>{architecture.title}</h2>
           <p className="section-copy">
-            Each project now has dedicated sub-pages for overview, architecture,
-            and code so the experience feels like a real SaaS workspace.
+            Architect, review code, and prepare deployment from one project workspace.
           </p>
         </div>
         <div className="topbar-actions">
@@ -80,7 +76,7 @@ export function ArchitectureDetailPage() {
             Edit Project
           </Link>
           <Link className="button-link primary" to="/app/studio">
-            New Architecture
+            New Project
           </Link>
         </div>
       </section>
@@ -88,21 +84,21 @@ export function ArchitectureDetailPage() {
       <nav className="tab-nav">
         <NavLink
           className={({ isActive }) => (isActive ? "tab-link active" : "tab-link")}
-          to="overview"
+          to="arch"
         >
-          Overview
-        </NavLink>
-        <NavLink
-          className={({ isActive }) => (isActive ? "tab-link active" : "tab-link")}
-          to="architecture"
-        >
-          Architecture
+          Arch
         </NavLink>
         <NavLink
           className={({ isActive }) => (isActive ? "tab-link active" : "tab-link")}
           to="code"
         >
           Code
+        </NavLink>
+        <NavLink
+          className={({ isActive }) => (isActive ? "tab-link active" : "tab-link")}
+          to="ship"
+        >
+          Ship
         </NavLink>
       </nav>
 
