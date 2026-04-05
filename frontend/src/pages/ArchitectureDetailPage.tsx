@@ -84,19 +84,19 @@ export function ArchitectureDetailPage() {
       <nav className="tab-nav">
         <NavLink
           className={({ isActive }) => (isActive ? "tab-link active" : "tab-link")}
-          to="arch"
+          to={`/app/projects/${architecture.request_id}/arch`}
         >
           Arch
         </NavLink>
         <NavLink
           className={({ isActive }) => (isActive ? "tab-link active" : "tab-link")}
-          to="code"
+          to={`/app/projects/${architecture.request_id}/code`}
         >
           Code
         </NavLink>
         <NavLink
           className={({ isActive }) => (isActive ? "tab-link active" : "tab-link")}
-          to="ship"
+          to={`/app/projects/${architecture.request_id}/ship`}
         >
           Ship
         </NavLink>

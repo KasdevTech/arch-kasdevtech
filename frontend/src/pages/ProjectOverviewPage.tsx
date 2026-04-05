@@ -93,7 +93,10 @@ export function ProjectOverviewPage() {
           <p className="eyebrow">Code</p>
           <h3>Open infrastructure code</h3>
           <p>Review provider baseline and per-component modules.</p>
-          <Link className="inline-link" to="../code">
+          <Link
+            className="inline-link"
+            to={`/app/projects/${architecture.request_id}/code`}
+          >
             Go to Code
           </Link>
         </article>
@@ -102,7 +105,10 @@ export function ProjectOverviewPage() {
           <p className="eyebrow">Ship</p>
           <h3>Connect Azure and prepare deploy</h3>
           <p>Provide tenant or SPN details, choose a resource group, and prepare deployment.</p>
-          <Link className="inline-link" to="../ship">
+          <Link
+            className="inline-link"
+            to={`/app/projects/${architecture.request_id}/ship`}
+          >
             Go to Ship
           </Link>
         </article>
