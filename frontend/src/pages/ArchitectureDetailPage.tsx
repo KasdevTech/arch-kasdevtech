@@ -2,6 +2,7 @@ import {
   Link,
   NavLink,
   Outlet,
+  useLocation,
   useNavigate,
   useParams,
 } from "react-router-dom";
@@ -14,6 +15,7 @@ export interface ProjectRouteContext {
 }
 
 export function ArchitectureDetailPage() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { projectId } = useParams();
   const { hydrated, projects, removeProject } = useArchitectureStore();
@@ -102,7 +104,10 @@ export function ArchitectureDetailPage() {
         </NavLink>
       </nav>
 
-      <Outlet context={{ architecture, onDelete: handleDelete }} />
+      <Outlet
+        key={location.pathname}
+        context={{ architecture, onDelete: handleDelete }}
+      />
     </div>
   );
 }
