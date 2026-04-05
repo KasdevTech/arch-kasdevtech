@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { useOutletContext } from "react-router-dom";
 import { rebuildArchitecture } from "../api";
 import { ArchitectureBoard } from "../components/ArchitectureBoard";
 import { ArchitectureReport } from "../components/ArchitectureReport";
+import { HardLink } from "../components/HardLink";
 import { useArchitectureStore } from "../context/ArchitectureStore";
 import type { ProjectHistoryResponse, ServiceMapping } from "../types";
 import type { ProjectRouteContext } from "./ArchitectureDetailPage";
@@ -14,12 +13,11 @@ interface ProjectOverviewPageProps {
 }
 
 export function ProjectOverviewPage(props: ProjectOverviewPageProps = {}) {
-  const outletContext = useOutletContext<ProjectRouteContext>();
-  const architecture = props.architecture ?? outletContext?.architecture;
-  const onDelete = props.onDelete ?? outletContext?.onDelete;
-  if (!architecture) {
+  if (!props.architecture) {
     return null;
   }
+  const architecture = props.architecture;
+  const onDelete = props.onDelete;
   const { saveProject, updateCanvasLayout, loadProjectHistory, restoreProject } =
     useArchitectureStore();
   const [services, setServices] = useState<ServiceMapping[]>(architecture.services);
@@ -103,24 +101,24 @@ export function ProjectOverviewPage(props: ProjectOverviewPageProps = {}) {
           <p className="eyebrow">Code</p>
           <h3>Open infrastructure code</h3>
           <p>Review provider baseline and per-component modules.</p>
-          <Link
+          <HardLink
             className="inline-link"
             to={`/app/projects/${architecture.request_id}/code`}
           >
             Go to Code
-          </Link>
+          </HardLink>
         </article>
 
         <article className="card quick-access-card">
           <p className="eyebrow">Ship</p>
           <h3>Connect Azure and prepare deploy</h3>
           <p>Provide tenant or SPN details, choose a resource group, and prepare deployment.</p>
-          <Link
+          <HardLink
             className="inline-link"
             to={`/app/projects/${architecture.request_id}/ship`}
           >
             Go to Ship
-          </Link>
+          </HardLink>
         </article>
       </section>
 

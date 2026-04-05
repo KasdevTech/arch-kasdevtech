@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useOutletContext } from "react-router-dom";
 import { deployToAzure, prepareAzureDeployment } from "../api";
 import { useArchitectureStore } from "../context/ArchitectureStore";
 import type {
@@ -217,11 +216,10 @@ function downloadScript(title: string, commands: string[]) {
 }
 
 export function ProjectShipPage(props: ProjectShipPageProps = {}) {
-  const outletContext = useOutletContext<ProjectRouteContext>();
-  const architecture = props.architecture ?? outletContext?.architecture;
-  if (!architecture) {
+  if (!props.architecture) {
     return null;
   }
+  const architecture = props.architecture;
   const { updateDeploymentProfile } = useArchitectureStore();
   const [profile, setProfile] = useState<AzureDeploymentProfile>(
     architecture.azure_deployment_profile ??

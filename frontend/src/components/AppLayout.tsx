@@ -1,4 +1,5 @@
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
+import { HardLink } from "./HardLink";
 import { useArchitectureStore } from "../context/ArchitectureStore";
 import { useTheme } from "../context/ThemeContext";
 
@@ -41,27 +42,31 @@ export function AppLayout() {
     PAGE_TITLES.find((item) => location.pathname.startsWith(item.prefix)) ??
     PAGE_TITLES[0];
 
+  function isActivePath(target: string) {
+    return location.pathname === target || location.pathname.startsWith(`${target}/`);
+  }
+
   return (
     <div className="product-shell">
       <aside className="sidebar sidebar-rail">
-        <Link className="sidebar-brand sidebar-brand-compact" to="/">
+        <HardLink className="sidebar-brand sidebar-brand-compact" to="/">
           <span className="brand-mark">KA</span>
           <strong>KasdevTech</strong>
-        </Link>
+        </HardLink>
 
         <nav className="sidebar-text-nav">
           {NAV_ITEMS.map((item) => (
-            <NavLink
+            <HardLink
               aria-label={item.label}
               key={item.to}
-              className={({ isActive }) =>
-                isActive ? "sidebar-text-link active" : "sidebar-text-link"
+              className={
+                isActivePath(item.to) ? "sidebar-text-link active" : "sidebar-text-link"
               }
               to={item.to}
             >
               <span className="sidebar-link-icon" />
               <span className="sidebar-link-label">{item.label}</span>
-            </NavLink>
+            </HardLink>
           ))}
         </nav>
 
@@ -79,30 +84,36 @@ export function AppLayout() {
             <strong>{activeProject ? activeProject.title : "Select a project"}</strong>
             {activeProject ? (
               <nav className="project-rail-nav">
-                <NavLink
-                  className={({ isActive }) =>
-                    isActive ? "project-rail-link active" : "project-rail-link"
+                <HardLink
+                  className={
+                    location.pathname === `/app/projects/${activeProject.request_id}/arch`
+                      ? "project-rail-link active"
+                      : "project-rail-link"
                   }
                   to={`/app/projects/${activeProject.request_id}/arch`}
                 >
                   Arch
-                </NavLink>
-                <NavLink
-                  className={({ isActive }) =>
-                    isActive ? "project-rail-link active" : "project-rail-link"
+                </HardLink>
+                <HardLink
+                  className={
+                    location.pathname === `/app/projects/${activeProject.request_id}/code`
+                      ? "project-rail-link active"
+                      : "project-rail-link"
                   }
                   to={`/app/projects/${activeProject.request_id}/code`}
                 >
                   Code
-                </NavLink>
-                <NavLink
-                  className={({ isActive }) =>
-                    isActive ? "project-rail-link active" : "project-rail-link"
+                </HardLink>
+                <HardLink
+                  className={
+                    location.pathname === `/app/projects/${activeProject.request_id}/ship`
+                      ? "project-rail-link active"
+                      : "project-rail-link"
                   }
                   to={`/app/projects/${activeProject.request_id}/ship`}
                 >
                   Ship
-                </NavLink>
+                </HardLink>
               </nav>
             ) : (
               <p className="project-rail-empty">Open a project to switch between architecture, code, and deployment.</p>
@@ -115,7 +126,7 @@ export function AppLayout() {
         <header className="topbar">
           <div className="topbar-copy-block">
             <div className="workspace-breadcrumbs">
-              <Link to="/app/projects">Organization</Link>
+              <HardLink to="/app/projects">Organization</HardLink>
               <span>/</span>
               <span>{currentPage.title}</span>
             </div>
@@ -135,9 +146,9 @@ export function AppLayout() {
                 {theme === "light" ? "☾" : "☼"}
               </button>
               <span className="workspace-avatar">{initials}</span>
-              <Link className="button-link primary" to="/app/studio">
+              <HardLink className="button-link primary" to="/app/studio">
                 Create Project
-              </Link>
+              </HardLink>
             </div>
           </div>
         </header>

@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
 import { ArchitectureBoard } from "../components/ArchitectureBoard";
+import { HardLink } from "../components/HardLink";
 import { ProjectCard } from "../components/ProjectCard";
 import { useArchitectureStore } from "../context/ArchitectureStore";
 import { ARCHITECTURE_TEMPLATES } from "../data/catalog";
@@ -14,9 +14,9 @@ export function ProjectsPage() {
           <p className="eyebrow">Projects</p>
           <h2>Project library</h2>
         </div>
-        <Link className="button-link primary" to="/app/studio">
+        <HardLink className="button-link primary" to="/app/studio">
           Create Project
-        </Link>
+        </HardLink>
       </section>
 
       {!hydrated ? (
@@ -28,9 +28,9 @@ export function ProjectsPage() {
       {hydrated && projects.length === 0 ? (
         <section className="card empty-card">
           <h2>No projects yet.</h2>
-          <Link className="button-link primary" to="/app/studio">
+          <HardLink className="button-link primary" to="/app/studio">
             Create your first project
-          </Link>
+          </HardLink>
         </section>
       ) : null}
 

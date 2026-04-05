@@ -1,10 +1,5 @@
-import {
-  Link,
-  NavLink,
-  useLocation,
-  useNavigate,
-  useParams,
-} from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { HardLink } from "../components/HardLink";
 import type { ArchitectureResponse } from "../types";
 import { useArchitectureStore } from "../context/ArchitectureStore";
 import { ProjectOverviewPage } from "./ProjectOverviewPage";
@@ -48,12 +43,12 @@ export function ArchitectureDetailPage() {
         <p className="eyebrow">Not Found</p>
         <h2>This project does not exist in the local library.</h2>
         <div className="action-row">
-          <Link className="button-link secondary" to="/app/projects">
+          <HardLink className="button-link secondary" to="/app/projects">
             Back to Library
-          </Link>
-          <Link className="button-link primary" to="/app/studio">
+          </HardLink>
+          <HardLink className="button-link primary" to="/app/studio">
             Create Project
-          </Link>
+          </HardLink>
         </div>
       </section>
     );
@@ -76,40 +71,46 @@ export function ArchitectureDetailPage() {
           </p>
         </div>
         <div className="topbar-actions">
-          <Link className="button-link secondary" to="/app/projects">
+          <HardLink className="button-link secondary" to="/app/projects">
             Back to Library
-          </Link>
-          <Link
+          </HardLink>
+          <HardLink
             className="button-link secondary"
             to={`/app/projects/${architecture.request_id}/edit`}
           >
             Edit Project
-          </Link>
-          <Link className="button-link primary" to="/app/studio">
+          </HardLink>
+          <HardLink className="button-link primary" to="/app/studio">
             New Project
-          </Link>
+          </HardLink>
         </div>
       </section>
 
       <nav className="tab-nav">
-        <NavLink
-          className={({ isActive }) => (isActive ? "tab-link active" : "tab-link")}
+        <HardLink
+          className={
+            currentSubpage === "arch" ? "tab-link active" : "tab-link"
+          }
           to={`/app/projects/${architecture.request_id}/arch`}
         >
           Arch
-        </NavLink>
-        <NavLink
-          className={({ isActive }) => (isActive ? "tab-link active" : "tab-link")}
+        </HardLink>
+        <HardLink
+          className={
+            currentSubpage === "code" ? "tab-link active" : "tab-link"
+          }
           to={`/app/projects/${architecture.request_id}/code`}
         >
           Code
-        </NavLink>
-        <NavLink
-          className={({ isActive }) => (isActive ? "tab-link active" : "tab-link")}
+        </HardLink>
+        <HardLink
+          className={
+            currentSubpage === "ship" ? "tab-link active" : "tab-link"
+          }
           to={`/app/projects/${architecture.request_id}/ship`}
         >
           Ship
-        </NavLink>
+        </HardLink>
       </nav>
       {currentSubpage === "code" ? (
         <ProjectTerraformPage architecture={architecture} />

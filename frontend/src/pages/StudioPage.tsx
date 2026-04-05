@@ -1,8 +1,9 @@
 import { startTransition, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { generateArchitecture } from "../api";
 import { ArchitectureBoard } from "../components/ArchitectureBoard";
 import { ArchitectureComposer } from "../components/ArchitectureComposer";
+import { HardLink } from "../components/HardLink";
 import { ProjectCard } from "../components/ProjectCard";
 import { useArchitectureStore } from "../context/ArchitectureStore";
 import { ARCHITECTURE_TEMPLATES } from "../data/catalog";
@@ -138,12 +139,12 @@ export function StudioPage() {
           </div>
           {editingProject ? (
             <div className="action-row">
-              <Link
+              <HardLink
                 className="button-link secondary"
                 to={`/app/projects/${editingProject.request_id}/arch`}
               >
                 Cancel editing
-              </Link>
+              </HardLink>
             </div>
           ) : null}
         </section>
@@ -209,9 +210,9 @@ export function StudioPage() {
               <h2>Library</h2>
             </div>
             {projects.length > 0 ? (
-              <Link className="inline-link" to="/app/projects">
+              <HardLink className="inline-link" to="/app/projects">
                 View all
-              </Link>
+              </HardLink>
             ) : null}
           </div>
 

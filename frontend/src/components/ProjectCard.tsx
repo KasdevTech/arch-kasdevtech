@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { HardLink } from "./HardLink";
 import type { ArchitectureResponse } from "../types";
 import { VALUE_LABELS } from "../data/catalog";
 
@@ -56,12 +56,12 @@ export function ProjectCard({ architecture }: ProjectCardProps) {
         </div>
       </div>
 
-      <Link
+      <HardLink
         className="inline-link"
         to={`/app/projects/${architecture.request_id}/arch`}
       >
         Open project
-      </Link>
+      </HardLink>
     </article>
   );
 }
