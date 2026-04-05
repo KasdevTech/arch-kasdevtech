@@ -7,9 +7,6 @@ import { ChatPage } from "./pages/ChatPage";
 import { ContactPage } from "./pages/ContactPage";
 import { DocsPage } from "./pages/DocsPage";
 import { LandingPage } from "./pages/LandingPage";
-import { ProjectOverviewPage } from "./pages/ProjectOverviewPage";
-import { ProjectShipPage } from "./pages/ProjectShipPage";
-import { ProjectTerraformPage } from "./pages/ProjectTerraformPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { StudioPage } from "./pages/StudioPage";
 
@@ -25,20 +22,27 @@ function App() {
           <Route index element={<Navigate to="/app/studio" replace />} />
           <Route path="studio" element={<StudioPage />} />
           <Route path="chat" element={<ChatPage />} />
-        <Route path="projects/:projectId/edit" element={<StudioPage />} />
-        <Route path="projects" element={<ProjectsPage />} />
-        <Route path="projects/:projectId" element={<ArchitectureDetailPage />}>
-            <Route index element={<Navigate to="arch" replace />} />
-            <Route path="arch" element={<ProjectOverviewPage />} />
-            <Route path="architecture" element={<Navigate to="../arch" replace />} />
-            <Route path="code" element={<ProjectTerraformPage />} />
-            <Route path="ship" element={<ProjectShipPage />} />
-            <Route path="overview" element={<Navigate to="../arch" replace />} />
-            <Route
-              path="terraform"
-              element={<Navigate to="../code" replace />}
-            />
-          </Route>
+          <Route path="projects/:projectId/edit" element={<StudioPage />} />
+          <Route path="projects" element={<ProjectsPage />} />
+          <Route
+            path="projects/:projectId"
+            element={<Navigate to="arch" replace />}
+          />
+          <Route path="projects/:projectId/arch" element={<ArchitectureDetailPage />} />
+          <Route path="projects/:projectId/code" element={<ArchitectureDetailPage />} />
+          <Route path="projects/:projectId/ship" element={<ArchitectureDetailPage />} />
+          <Route
+            path="projects/:projectId/architecture"
+            element={<Navigate to="../arch" replace />}
+          />
+          <Route
+            path="projects/:projectId/overview"
+            element={<Navigate to="../arch" replace />}
+          />
+          <Route
+            path="projects/:projectId/terraform"
+            element={<Navigate to="../code" replace />}
+          />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
