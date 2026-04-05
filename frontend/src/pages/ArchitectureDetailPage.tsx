@@ -1,13 +1,15 @@
 import {
   Link,
   NavLink,
-  Outlet,
   useLocation,
   useNavigate,
   useParams,
 } from "react-router-dom";
 import type { ArchitectureResponse } from "../types";
 import { useArchitectureStore } from "../context/ArchitectureStore";
+import { ProjectOverviewPage } from "./ProjectOverviewPage";
+import { ProjectShipPage } from "./ProjectShipPage";
+import { ProjectTerraformPage } from "./ProjectTerraformPage";
 
 export interface ProjectRouteContext {
   architecture: ArchitectureResponse;
@@ -57,6 +59,12 @@ export function ArchitectureDetailPage() {
     );
   }
 
+  const currentSubpage = location.pathname.endsWith("/code")
+    ? "code"
+    : location.pathname.endsWith("/ship")
+      ? "ship"
+      : "arch";
+
   return (
     <div className="page-stack">
       <section className="page-header">
@@ -103,11 +111,16 @@ export function ArchitectureDetailPage() {
           Ship
         </NavLink>
       </nav>
-
-      <Outlet
-        key={location.pathname}
-        context={{ architecture, onDelete: handleDelete }}
-      />
+      {currentSubpage === "code" ? (
+        <ProjectTerraformPage architecture={architecture} />
+      ) : currentSubpage === "ship" ? (
+        <ProjectShipPage architecture={architecture} />
+      ) : (
+        <ProjectOverviewPage
+          architecture={architecture}
+          onDelete={handleDelete}
+        />
+      )}
     </div>
   );
 }

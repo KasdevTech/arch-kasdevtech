@@ -8,8 +8,18 @@ import { useArchitectureStore } from "../context/ArchitectureStore";
 import type { ProjectHistoryResponse, ServiceMapping } from "../types";
 import type { ProjectRouteContext } from "./ArchitectureDetailPage";
 
-export function ProjectOverviewPage() {
-  const { architecture, onDelete } = useOutletContext<ProjectRouteContext>();
+interface ProjectOverviewPageProps {
+  architecture?: ProjectRouteContext["architecture"];
+  onDelete?: ProjectRouteContext["onDelete"];
+}
+
+export function ProjectOverviewPage(props: ProjectOverviewPageProps = {}) {
+  const outletContext = useOutletContext<ProjectRouteContext>();
+  const architecture = props.architecture ?? outletContext?.architecture;
+  const onDelete = props.onDelete ?? outletContext?.onDelete;
+  if (!architecture) {
+    return null;
+  }
   const { saveProject, updateCanvasLayout, loadProjectHistory, restoreProject } =
     useArchitectureStore();
   const [services, setServices] = useState<ServiceMapping[]>(architecture.services);

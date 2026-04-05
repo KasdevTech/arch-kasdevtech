@@ -13,6 +13,10 @@ import type {
 } from "../types";
 import type { ProjectRouteContext } from "./ArchitectureDetailPage";
 
+interface ProjectShipPageProps {
+  architecture?: ProjectRouteContext["architecture"];
+}
+
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -212,8 +216,12 @@ function downloadScript(title: string, commands: string[]) {
   URL.revokeObjectURL(url);
 }
 
-export function ProjectShipPage() {
-  const { architecture } = useOutletContext<ProjectRouteContext>();
+export function ProjectShipPage(props: ProjectShipPageProps = {}) {
+  const outletContext = useOutletContext<ProjectRouteContext>();
+  const architecture = props.architecture ?? outletContext?.architecture;
+  if (!architecture) {
+    return null;
+  }
   const { updateDeploymentProfile } = useArchitectureStore();
   const [profile, setProfile] = useState<AzureDeploymentProfile>(
     architecture.azure_deployment_profile ??
