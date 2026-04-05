@@ -120,6 +120,25 @@ Important techniques:
 - fast-path heuristic parsing for common prompts
 - LLM fallback for complex cases
 - lightweight pattern ranking signals for domain/archetype confidence
+- lightweight classifier signals from curated examples
+
+### [services/architecture_classifier.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/services/architecture_classifier.py)
+
+Purpose:
+
+- predicts domain/archetype from curated pattern examples
+
+How it works:
+
+- tokenizes prompts
+- builds a tiny local text model from pattern examples
+- scores each pattern family
+- returns the highest-confidence prediction
+
+Why it matters:
+
+- adds a real model-style classification signal
+- reduces dependence on keyword rules alone
 
 This is one of the most important files in the entire product.
 

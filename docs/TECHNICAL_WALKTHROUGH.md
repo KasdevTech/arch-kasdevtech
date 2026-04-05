@@ -185,6 +185,7 @@ Current behavior:
 - complex prompts can use an LLM parser
 - if the LLM path fails, the system falls back to heuristics
 - a lightweight pattern ranker scores the prompt against known architecture packs
+- a lightweight local classifier predicts domain and archetype from curated examples
 - top retrieval matches and classification confidence are carried into the final response
 
 Important parser responsibilities:
@@ -210,19 +211,21 @@ Why this is powerful:
 
 Files:
 
+- [architecture_classifier.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/services/architecture_classifier.py)
 - [pattern_library.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/services/pattern_library.py)
 - [intent_parser.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/services/intent_parser.py)
 
-This is a lightweight local ranking layer that behaves like a small retrieval/classification model.
+This is a lightweight local ranking and classification layer.
 
 What it does:
 
 - scores the prompt against curated architecture packs
+- classifies prompt family from curated examples
 - returns the closest pattern matches
 - boosts domain and archetype selection
 - improves confidence scoring
 
-It is not a trained ML model yet, but it is the first real model-like ranking layer in the product.
+It is not a large trained production ML system yet, but it is now a genuine local model layer in the product.
 
 ### 4.5 Cloud Mapping Engine
 

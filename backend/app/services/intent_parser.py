@@ -20,6 +20,7 @@ from app.models import (
     SolutionDomain,
     UserScale,
 )
+from app.services.architecture_classifier import architecture_classifier
 from app.services.pattern_library import pattern_library
 from app.services.prompt_templates import INTENT_SYSTEM_PROMPT
 
@@ -547,9 +548,14 @@ class IntentParser:
     def _parse_heuristically(self, request: ArchitectureRequest) -> ArchitectureIntent:
         lowered = request.prompt.lower()
         preferences = self._normalize_preferences(request.preferences)
+        classifier_prediction = architecture_classifier.predict(request.prompt)
         retrieval_matches = pattern_library.rank(request.prompt)
         top_match = retrieval_matches[0] if retrieval_matches else None
         domain_hint = self._forced_domain(lowered) or (
+            classifier_prediction.domain
+            if classifier_prediction and classifier_prediction.confidence >= 0.58
+            else None
+        ) or (
             top_match.domain if top_match and top_match.score >= 0.32 else None
         )
         components: list[ParsedComponent] = []
@@ -614,11 +620,26 @@ class IntentParser:
 
         priorities = self._extract_priorities(lowered, preferences)
         patterns = self._extract_patterns(lowered, components, preferences)
-        domain = domain_hint or self._classify_domain(lowered, components, retrieval_matches)
+        domain = domain_hint or self._classify_domain(
+            lowered,
+            components,
+            retrieval_matches,
+            classifier_prediction,
+        )
         archetype = (
-            top_match.archetype
+            classifier_prediction.archetype
+            if classifier_prediction
+            and classifier_prediction.domain == domain
+            and classifier_prediction.confidence >= 0.62
+            else top_match.archetype
             if top_match and top_match.domain == domain and top_match.score >= 0.42
-            else self._select_archetype(domain, lowered, components, retrieval_matches)
+            else self._select_archetype(
+                domain,
+                lowered,
+                components,
+                retrieval_matches,
+                classifier_prediction,
+            )
         )
         title = self._build_title(request.prompt, request.cloud, preferences)
         summary = self._build_summary(request.cloud, components, priorities, preferences, domain, archetype)
@@ -635,7 +656,10 @@ class IntentParser:
             patterns=patterns,
             assumptions=assumptions,
             components=components,
-            classification_confidence=top_match.score if top_match else 0.0,
+            classification_confidence=max(
+                classifier_prediction.confidence if classifier_prediction else 0.0,
+                top_match.score if top_match else 0.0,
+            ),
             retrieval_matches=retrieval_matches,
         )
 
@@ -708,6 +732,7 @@ class IntentParser:
         preferences: ArchitecturePreferences,
     ) -> ArchitectureIntent:
         lowered_prompt = request.prompt.lower()
+        classifier_prediction = architecture_classifier.predict(request.prompt)
         retrieval_matches = pattern_library.rank(request.prompt)
         top_match = retrieval_matches[0] if retrieval_matches else None
 
@@ -721,6 +746,10 @@ class IntentParser:
         ]
 
         forced_domain = self._forced_domain(lowered_prompt) or (
+            classifier_prediction.domain
+            if classifier_prediction and classifier_prediction.confidence >= 0.58
+            else None
+        ) or (
             top_match.domain if top_match and top_match.score >= 0.32 else None
         )
         if not components:
@@ -732,15 +761,21 @@ class IntentParser:
             lowered_prompt,
             components,
             retrieval_matches,
+            classifier_prediction,
         )
         archetype = self._safe_archetype(payload.get("archetype")) or (
-            top_match.archetype
+            classifier_prediction.archetype
+            if classifier_prediction
+            and classifier_prediction.domain == domain
+            and classifier_prediction.confidence >= 0.62
+            else top_match.archetype
             if top_match and top_match.domain == domain and top_match.score >= 0.42
             else self._select_archetype(
                 domain,
                 lowered_prompt,
                 components,
                 retrieval_matches,
+                classifier_prediction,
             )
         )
 
@@ -772,7 +807,10 @@ class IntentParser:
                 domain,
             ),
             components=components,
-            classification_confidence=top_match.score if top_match else 0.0,
+            classification_confidence=max(
+                classifier_prediction.confidence if classifier_prediction else 0.0,
+                top_match.score if top_match else 0.0,
+            ),
             retrieval_matches=retrieval_matches,
         )
 
@@ -1229,6 +1267,7 @@ class IntentParser:
         lowered_prompt: str,
         components: list[ParsedComponent],
         retrieval_matches: list | None = None,
+        classifier_prediction: object | None = None,
     ) -> SolutionDomain:
         forced = self._forced_domain(lowered_prompt)
         if forced is not None:
@@ -1256,6 +1295,11 @@ class IntentParser:
 
         for match in retrieval_matches or []:
             scores[match.domain] = scores.get(match.domain, 0) + int(match.score * 100)
+
+        if classifier_prediction is not None:
+            scores[classifier_prediction.domain] = scores.get(classifier_prediction.domain, 0) + int(
+                classifier_prediction.confidence * 120
+            )
 
         best_domain = max(scores.items(), key=lambda item: item[1], default=(SolutionDomain.enterprise_application, 0))
         if best_domain[1] <= 0:
@@ -1289,7 +1333,14 @@ class IntentParser:
         lowered_prompt: str,
         components: list[ParsedComponent],
         retrieval_matches: list | None = None,
+        classifier_prediction: object | None = None,
     ) -> SolutionArchetype:
+        if (
+            classifier_prediction is not None
+            and classifier_prediction.domain == domain
+            and classifier_prediction.confidence >= 0.56
+        ):
+            return classifier_prediction.archetype
         top_match = (retrieval_matches or [None])[0]
         if top_match and top_match.domain == domain and top_match.score >= 0.38:
             return top_match.archetype
