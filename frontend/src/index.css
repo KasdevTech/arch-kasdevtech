@@ -1710,6 +1710,11 @@ textarea:focus {
   border-top: 1px solid rgba(148, 163, 184, 0.12);
 }
 
+.board-palette-block {
+  display: grid;
+  gap: 14px;
+}
+
 .board-inspector-form {
   display: grid;
   gap: 14px;
@@ -1725,6 +1730,43 @@ textarea:focus {
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 18px;
+}
+
+.symbol-palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.symbol-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  text-align: left;
+}
+
+.symbol-chip img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.symbol-chip span {
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.symbol-chip.is-active {
+  border-color: rgba(45, 212, 191, 0.4);
+  background: rgba(45, 212, 191, 0.14);
 }
 
 .legend-chip {

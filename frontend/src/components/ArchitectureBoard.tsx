@@ -38,6 +38,14 @@ type DragState = {
   offsetY: number;
 };
 
+type ServiceStencil = {
+  type: ServiceMapping["type"];
+  label: string;
+  cloud_service: string;
+  category: string;
+  rationale: string;
+};
+
 const NODE_WIDTH = 230;
 const NODE_HEIGHT = 96;
 const VIEWBOX_WIDTH = 1280;
@@ -286,6 +294,121 @@ const SERVICE_IMAGE_URLS: Record<string, string> = {
   cicd_pipeline: "https://cdn.simpleicons.org/githubactions/2088FF",
 };
 
+const AZURE_STENCILS: ServiceStencil[] = [
+  {
+    type: "frontend",
+    label: "Web frontend",
+    cloud_service: "Azure Static Web Apps",
+    category: "presentation",
+    rationale: "Hosts the web experience with managed frontend deployment.",
+  },
+  {
+    type: "authentication",
+    label: "Authentication",
+    cloud_service: "Microsoft Entra External ID",
+    category: "identity",
+    rationale: "Handles sign-in, identity federation, and access.",
+  },
+  {
+    type: "cdn",
+    label: "Global edge",
+    cloud_service: "Azure Front Door",
+    category: "edge",
+    rationale: "Provides global entry, acceleration, and edge routing.",
+  },
+  {
+    type: "waf",
+    label: "Web application firewall",
+    cloud_service: "Azure Web Application Firewall",
+    category: "security",
+    rationale: "Protects internet-facing traffic with managed WAF controls.",
+  },
+  {
+    type: "api_gateway",
+    label: "API gateway",
+    cloud_service: "Azure API Management",
+    category: "api",
+    rationale: "Publishes, secures, and governs API traffic.",
+  },
+  {
+    type: "backend_api",
+    label: "Application API",
+    cloud_service: "Azure App Service",
+    category: "compute",
+    rationale: "Runs core business APIs on managed web compute.",
+  },
+  {
+    type: "database",
+    label: "Primary database",
+    cloud_service: "Azure SQL Database",
+    category: "data",
+    rationale: "Stores relational application data.",
+  },
+  {
+    type: "cache",
+    label: "Cache layer",
+    cloud_service: "Azure Cache for Redis",
+    category: "cache",
+    rationale: "Reduces latency and unloads the primary database.",
+  },
+  {
+    type: "queue",
+    label: "Async messaging",
+    cloud_service: "Azure Service Bus",
+    category: "messaging",
+    rationale: "Supports decoupled workflows and background processing.",
+  },
+  {
+    type: "object_storage",
+    label: "Object storage",
+    cloud_service: "Azure Storage Account",
+    category: "storage",
+    rationale: "Stores files, exports, and unstructured content.",
+  },
+  {
+    type: "secrets",
+    label: "Secrets management",
+    cloud_service: "Azure Key Vault",
+    category: "security",
+    rationale: "Stores secrets, keys, and certificates securely.",
+  },
+  {
+    type: "private_network",
+    label: "Private network",
+    cloud_service: "Azure Virtual Network",
+    category: "network",
+    rationale: "Provides network isolation and private access boundaries.",
+  },
+  {
+    type: "monitoring",
+    label: "Monitoring",
+    cloud_service: "Azure Monitor",
+    category: "operations",
+    rationale: "Collects logs, metrics, dashboards, and alerts.",
+  },
+  {
+    type: "integration",
+    label: "Integration workflow",
+    cloud_service: "Azure Logic Apps",
+    category: "integration",
+    rationale: "Handles workflow orchestration and system integration.",
+  },
+  {
+    type: "analytics",
+    label: "Analytics workspace",
+    cloud_service: "Power BI Embedded",
+    category: "analytics",
+    rationale: "Supports embedded analytics and reporting experiences.",
+  },
+  {
+    type: "cicd_pipeline",
+    label: "CI/CD pipeline",
+    cloud_service: "Azure DevOps",
+    category: "delivery",
+    rationale: "Automates build, validation, and deployment workflows.",
+  },
+];
+
 function serviceImage(
   cloud: ArchitectureResponse["cloud"],
   serviceType: ServiceMapping["type"],
@@ -300,6 +423,10 @@ function serviceImage(
 
 function serviceSubtitle(service: ServiceMapping) {
   return service.cloud_service;
+}
+
+function stencilImage(cloud: ArchitectureResponse["cloud"], stencil: ServiceStencil) {
+  return serviceImage(cloud, stencil.type);
 }
 
 function categoryFill(category: string) {
@@ -818,19 +945,48 @@ export function ArchitectureBoard({
       return;
     }
 
+    addServiceFromStencil(AZURE_STENCILS[0]);
+  }
+
+  function addServiceFromStencil(stencil: ServiceStencil) {
+    if (!onServicesChange) {
+      return;
+    }
+
     const index = editableServices.length + 1;
-    const nextId = `custom_${index}`;
+    const nextId = `${stencil.type}_${index}`;
     const nextService: ServiceMapping = {
       id: nextId,
-      type: "integration",
-      label: `Custom Service ${index}`,
-      cloud_service: "Azure Logic Apps",
-      category: "integration",
-      rationale: "Custom architecture service.",
+      type: stencil.type,
+      label: stencil.label,
+      cloud_service: stencil.cloud_service,
+      category: stencil.category,
+      rationale: stencil.rationale,
     };
 
     onServicesChange([...editableServices, nextService]);
     setSelectedNodeId(nextId);
+  }
+
+  function applyStencilToSelected(stencil: ServiceStencil) {
+    if (!selectedService || !onServicesChange) {
+      return;
+    }
+
+    onServicesChange(
+      editableServices.map((service) =>
+        service.id === selectedService.id
+          ? {
+              ...service,
+              type: stencil.type,
+              label: stencil.label,
+              cloud_service: stencil.cloud_service,
+              category: stencil.category,
+              rationale: stencil.rationale,
+            }
+          : service,
+      ),
+    );
   }
 
   async function exportSvg(filename: string) {
@@ -1190,6 +1346,30 @@ export function ArchitectureBoard({
 
           {selectedService ? (
             <div className="composer-form board-inspector-form">
+              <div className="board-palette-block">
+                <div className="section-heading">
+                  <p className="eyebrow">Symbols</p>
+                  <h2>Replace selected component</h2>
+                </div>
+                <div className="symbol-palette">
+                  {AZURE_STENCILS.map((stencil) => (
+                    <button
+                      key={`replace-${stencil.type}`}
+                      className={
+                        stencil.type === selectedService.type
+                          ? "symbol-chip is-active"
+                          : "symbol-chip"
+                      }
+                      onClick={() => applyStencilToSelected(stencil)}
+                      type="button"
+                    >
+                      <img alt={stencil.label} src={stencilImage(architecture.cloud, stencil)} />
+                      <span>{stencil.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <label className="field">
                 <span>Label</span>
                 <input
@@ -1258,9 +1438,30 @@ export function ArchitectureBoard({
               </label>
             </div>
           ) : (
-            <div className="empty-state subtle">
-              <p>Click a component in the canvas to edit it.</p>
-              <span>Add or remove components directly from the architecture workspace.</span>
+            <div className="page-stack">
+              <div className="empty-state subtle">
+                <p>Click a component in the canvas to edit it.</p>
+                <span>Add, replace, or remove components directly from the architecture workspace.</span>
+              </div>
+              <div className="board-palette-block">
+                <div className="section-heading">
+                  <p className="eyebrow">Symbols</p>
+                  <h2>Add component from palette</h2>
+                </div>
+                <div className="symbol-palette">
+                  {AZURE_STENCILS.map((stencil) => (
+                    <button
+                      key={`add-${stencil.type}`}
+                      className="symbol-chip"
+                      onClick={() => addServiceFromStencil(stencil)}
+                      type="button"
+                    >
+                      <img alt={stencil.label} src={stencilImage(architecture.cloud, stencil)} />
+                      <span>{stencil.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </section>
