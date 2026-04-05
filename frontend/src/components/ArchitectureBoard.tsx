@@ -1139,6 +1139,16 @@ export function ArchitectureBoard({
     setSelectedConnection(null);
   }
 
+  function beginConnectFromNode(nodeId: string) {
+    if (readOnly || !onConnectionsChange) {
+      return;
+    }
+
+    setSelectedNodeId(nodeId);
+    setSelectedConnection(null);
+    setConnectFromNodeId(nodeId);
+  }
+
   function pointToCanvasPosition(clientX: number, clientY: number) {
     if (!svgRef.current) {
       return { x: 240, y: 160 };
@@ -1360,6 +1370,34 @@ export function ArchitectureBoard({
           setDraggingStencilType(null);
         }}
       >
+        {!readOnly && onServicesChange ? (
+          <div className="canvas-stencil-dock">
+            <div className="canvas-stencil-head">
+              <strong>Symbols</strong>
+              <span>Drag into canvas</span>
+            </div>
+            <div className="canvas-stencil-list">
+              {AZURE_STENCILS.slice(0, 8).map((stencil) => (
+                <button
+                  key={`dock-${stencil.type}`}
+                  className="canvas-stencil-item"
+                  draggable
+                  onClick={() => addServiceFromStencil(stencil)}
+                  onDragEnd={() => setDraggingStencilType(null)}
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData("text/plain", stencil.type);
+                    event.dataTransfer.effectAllowed = "copy";
+                    setDraggingStencilType(stencil.type);
+                  }}
+                  type="button"
+                >
+                  <img alt={stencil.label} src={stencilImage(architecture.cloud, stencil)} />
+                  <span>{stencil.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <svg
           ref={svgRef}
           className="architecture-canvas"
@@ -1475,6 +1513,8 @@ export function ArchitectureBoard({
               className={
                 node.locked
                   ? "canvas-node is-locked"
+                  : connectFromNodeId && connectFromNodeId !== node.id
+                    ? "canvas-node is-connection-target"
                   : selectedNodeId === node.id
                     ? "canvas-node is-selected"
                     : "canvas-node"
@@ -1529,6 +1569,35 @@ export function ArchitectureBoard({
               >
                 {node.subtitle}
               </text>
+              {!readOnly && !node.locked && selectedNodeId === node.id ? (
+                <>
+                  <circle
+                    className="canvas-port"
+                    cx={node.x + node.width}
+                    cy={node.y + node.height / 2}
+                    fill="#0f172a"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      beginConnectFromNode(node.id);
+                    }}
+                    r="11"
+                    stroke="#2dd4bf"
+                    strokeWidth="2"
+                  />
+                  <path
+                    d={`M ${node.x + node.width - 4} ${node.y + node.height / 2} L ${node.x + node.width + 4} ${node.y + node.height / 2}`}
+                    pointerEvents="none"
+                    stroke="#2dd4bf"
+                    strokeWidth="2"
+                  />
+                  <path
+                    d={`M ${node.x + node.width} ${node.y + node.height / 2 - 4} L ${node.x + node.width} ${node.y + node.height / 2 + 4}`}
+                    pointerEvents="none"
+                    stroke="#2dd4bf"
+                    strokeWidth="2"
+                  />
+                </>
+              ) : null}
             </g>
           ))}
         </svg>
@@ -1614,7 +1683,11 @@ export function ArchitectureBoard({
                       }
                       onClick={() => applyStencilToSelected(stencil)}
                       onDragEnd={() => setDraggingStencilType(null)}
-                      onDragStart={() => setDraggingStencilType(stencil.type)}
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData("text/plain", stencil.type);
+                        event.dataTransfer.effectAllowed = "copy";
+                        setDraggingStencilType(stencil.type);
+                      }}
                       draggable
                       type="button"
                     >
@@ -1710,7 +1783,11 @@ export function ArchitectureBoard({
                       className="symbol-chip"
                       draggable
                       onDragEnd={() => setDraggingStencilType(null)}
-                      onDragStart={() => setDraggingStencilType(stencil.type)}
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData("text/plain", stencil.type);
+                        event.dataTransfer.effectAllowed = "copy";
+                        setDraggingStencilType(stencil.type);
+                      }}
                       onClick={() => addServiceFromStencil(stencil)}
                       type="button"
                     >

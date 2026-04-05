@@ -1688,6 +1688,68 @@ textarea:focus {
   position: relative;
 }
 
+.canvas-stencil-dock {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 4;
+  width: 220px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 18px;
+  background: rgba(9, 17, 31, 0.88);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.32);
+}
+
+.canvas-stencil-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.canvas-stencil-head strong {
+  font-size: 0.9rem;
+  color: #f8fafc;
+}
+
+.canvas-stencil-head span {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.canvas-stencil-list {
+  display: grid;
+  gap: 8px;
+}
+
+.canvas-stencil-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
+  cursor: grab;
+  text-align: left;
+}
+
+.canvas-stencil-item img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.canvas-stencil-item span {
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 .canvas-node {
   transition: filter 180ms ease;
 }
@@ -1704,8 +1766,17 @@ textarea:focus {
   filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0)) drop-shadow(0 12px 24px rgba(45, 212, 191, 0.2));
 }
 
+.canvas-node.is-connection-target rect:first-child {
+  stroke: #60a5fa;
+  stroke-width: 3;
+}
+
 .canvas-node.is-locked:hover {
   filter: none;
+}
+
+.canvas-port {
+  cursor: crosshair;
 }
 
 .canvas-connection {
@@ -1878,6 +1949,12 @@ textarea:focus {
 
   .board-actions {
     justify-content: start;
+  }
+
+  .canvas-stencil-dock {
+    position: static;
+    width: 100%;
+    margin-bottom: 14px;
   }
 
   .topbar-right {
