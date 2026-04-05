@@ -119,6 +119,7 @@ Important techniques:
 - component keyword extraction
 - fast-path heuristic parsing for common prompts
 - LLM fallback for complex cases
+- lightweight pattern ranking signals for domain/archetype confidence
 
 This is one of the most important files in the entire product.
 
@@ -143,6 +144,31 @@ Why this is critical:
 
 - this is the main anti-hallucination layer
 - the model can suggest intent, but final service mapping is deterministic
+
+### [services/pattern_library.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/services/pattern_library.py)
+
+Purpose:
+
+- stores curated solution pattern packs
+- ranks prompts against those packs
+
+What it adds:
+
+- top matched pattern list
+- lightweight similarity score
+- more stable domain/archetype routing
+
+### [services/architecture_validator.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/services/architecture_validator.py)
+
+Purpose:
+
+- validates generated architectures against expected enterprise patterns
+
+What it adds:
+
+- confidence score
+- matched pattern title
+- findings and recommendations
 
 ### [services/diagram_service.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/services/diagram_service.py)
 

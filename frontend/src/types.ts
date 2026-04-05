@@ -84,6 +84,14 @@ export interface ArchitectureValidationFinding {
   recommendation: string;
 }
 
+export interface ArchitectureRetrievalMatch {
+  pattern_id: string;
+  title: string;
+  domain: SolutionDomain;
+  archetype: SolutionArchetype;
+  score: number;
+}
+
 export interface CanvasPosition {
   x: number;
   y: number;
@@ -112,7 +120,9 @@ export interface ArchitectureResponse {
   explanation_sections: ExplanationSection[];
   recommended_next_steps: string[];
   confidence_score?: number;
+  classification_confidence?: number;
   matched_pattern?: string | null;
+  retrieval_matches?: ArchitectureRetrievalMatch[];
   validator_findings?: ArchitectureValidationFinding[];
   mermaid: string;
   iac_template?: string | null;

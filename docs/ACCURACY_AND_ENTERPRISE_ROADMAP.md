@@ -17,6 +17,13 @@ The current system is intentionally hybrid:
 
 This is already better than an LLM-only generator because it constrains the output after understanding the prompt.
 
+What is now implemented in code:
+
+- pattern library
+- lightweight retrieval/ranking over architecture packs
+- architecture validator and confidence scoring
+- matched pattern and validation findings in the final response
+
 ## 2. Why Results Can Still Be Inaccurate
 
 Even with the current design, results can still drift for a few reasons:
@@ -173,6 +180,11 @@ Then use retrieval to ground:
 - required control expectations
 
 This improves accuracy more safely than just “using a bigger model”.
+
+Current state:
+
+- a first lightweight retrieval/pattern-ranking layer is already implemented locally in code
+- it is still lexical and curated, not embedding-based or trained
 
 ### Phase 3: Domain Packs
 

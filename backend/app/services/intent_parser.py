@@ -547,7 +547,11 @@ class IntentParser:
     def _parse_heuristically(self, request: ArchitectureRequest) -> ArchitectureIntent:
         lowered = request.prompt.lower()
         preferences = self._normalize_preferences(request.preferences)
-        domain_hint = self._forced_domain(lowered)
+        retrieval_matches = pattern_library.rank(request.prompt)
+        top_match = retrieval_matches[0] if retrieval_matches else None
+        domain_hint = self._forced_domain(lowered) or (
+            top_match.domain if top_match and top_match.score >= 0.32 else None
+        )
         components: list[ParsedComponent] = []
 
         if any(
@@ -610,8 +614,12 @@ class IntentParser:
 
         priorities = self._extract_priorities(lowered, preferences)
         patterns = self._extract_patterns(lowered, components, preferences)
-        domain = domain_hint or self._classify_domain(lowered, components)
-        archetype = self._select_archetype(domain, lowered, components)
+        domain = domain_hint or self._classify_domain(lowered, components, retrieval_matches)
+        archetype = (
+            top_match.archetype
+            if top_match and top_match.domain == domain and top_match.score >= 0.42
+            else self._select_archetype(domain, lowered, components, retrieval_matches)
+        )
         title = self._build_title(request.prompt, request.cloud, preferences)
         summary = self._build_summary(request.cloud, components, priorities, preferences, domain, archetype)
         assumptions = self._build_assumptions(lowered, components, request.cloud, preferences, domain)
@@ -627,6 +635,8 @@ class IntentParser:
             patterns=patterns,
             assumptions=assumptions,
             components=components,
+            classification_confidence=top_match.score if top_match else 0.0,
+            retrieval_matches=retrieval_matches,
         )
 
     def _parse_with_openai(self, request: ArchitectureRequest) -> ArchitectureIntent:
@@ -698,6 +708,8 @@ class IntentParser:
         preferences: ArchitecturePreferences,
     ) -> ArchitectureIntent:
         lowered_prompt = request.prompt.lower()
+        retrieval_matches = pattern_library.rank(request.prompt)
+        top_match = retrieval_matches[0] if retrieval_matches else None
 
         raw_components = payload.get("components", [])
         components = [
@@ -708,17 +720,28 @@ class IntentParser:
             if component is not None
         ]
 
-        forced_domain = self._forced_domain(lowered_prompt)
+        forced_domain = self._forced_domain(lowered_prompt) or (
+            top_match.domain if top_match and top_match.score >= 0.32 else None
+        )
         if not components:
             fallback_intent = self._parse_heuristically(request)
             components = fallback_intent.components
 
         components = self._add_derived_components(components, lowered_prompt, preferences)
-        domain = forced_domain or self._safe_domain(payload.get("domain")) or self._classify_domain(lowered_prompt, components)
-        archetype = self._safe_archetype(payload.get("archetype")) or self._select_archetype(
-            domain,
+        domain = forced_domain or self._safe_domain(payload.get("domain")) or self._classify_domain(
             lowered_prompt,
             components,
+            retrieval_matches,
+        )
+        archetype = self._safe_archetype(payload.get("archetype")) or (
+            top_match.archetype
+            if top_match and top_match.domain == domain and top_match.score >= 0.42
+            else self._select_archetype(
+                domain,
+                lowered_prompt,
+                components,
+                retrieval_matches,
+            )
         )
 
         return ArchitectureIntent(
@@ -749,6 +772,8 @@ class IntentParser:
                 domain,
             ),
             components=components,
+            classification_confidence=top_match.score if top_match else 0.0,
+            retrieval_matches=retrieval_matches,
         )
 
     def _normalize_preferences(self, preferences: ArchitecturePreferences) -> ArchitecturePreferences:
@@ -1203,6 +1228,7 @@ class IntentParser:
         self,
         lowered_prompt: str,
         components: list[ParsedComponent],
+        retrieval_matches: list | None = None,
     ) -> SolutionDomain:
         forced = self._forced_domain(lowered_prompt)
         if forced is not None:
@@ -1227,6 +1253,9 @@ class IntentParser:
             scores[SolutionDomain.integration_platform] = scores.get(SolutionDomain.integration_platform, 0) + 2
         if ComponentType.analytics in component_types and "dashboard" in lowered_prompt:
             scores[SolutionDomain.analytics_platform] = scores.get(SolutionDomain.analytics_platform, 0) + 1
+
+        for match in retrieval_matches or []:
+            scores[match.domain] = scores.get(match.domain, 0) + int(match.score * 100)
 
         best_domain = max(scores.items(), key=lambda item: item[1], default=(SolutionDomain.enterprise_application, 0))
         if best_domain[1] <= 0:
@@ -1259,7 +1288,11 @@ class IntentParser:
         domain: SolutionDomain,
         lowered_prompt: str,
         components: list[ParsedComponent],
+        retrieval_matches: list | None = None,
     ) -> SolutionArchetype:
+        top_match = (retrieval_matches or [None])[0]
+        if top_match and top_match.domain == domain and top_match.score >= 0.38:
+            return top_match.archetype
         if domain == SolutionDomain.web_saas and any(
             keyword in lowered_prompt for keyword in ["event", "async", "queue", "workflow"]
         ):

@@ -149,6 +149,8 @@ class ArchitectureIntent(BaseModel):
     patterns: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     components: list[ParsedComponent] = Field(default_factory=list)
+    classification_confidence: float = 0.0
+    retrieval_matches: list[ArchitectureRetrievalMatch] = Field(default_factory=list)
 
 
 class ServiceMapping(BaseModel):
@@ -178,6 +180,14 @@ class ArchitectureValidationFinding(BaseModel):
     recommendation: str
 
 
+class ArchitectureRetrievalMatch(BaseModel):
+    pattern_id: str
+    title: str
+    domain: SolutionDomain
+    archetype: SolutionArchetype
+    score: float
+
+
 class ArchitectureResponse(BaseModel):
     request_id: str
     created_at: datetime = Field(
@@ -201,7 +211,9 @@ class ArchitectureResponse(BaseModel):
     explanation_sections: list[ExplanationSection]
     recommended_next_steps: list[str]
     confidence_score: float = 0.0
+    classification_confidence: float = 0.0
     matched_pattern: Optional[str] = None
+    retrieval_matches: list[ArchitectureRetrievalMatch] = Field(default_factory=list)
     validator_findings: list[ArchitectureValidationFinding] = Field(default_factory=list)
     mermaid: str
     iac_template: Optional[str] = None

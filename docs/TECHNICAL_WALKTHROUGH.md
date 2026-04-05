@@ -162,7 +162,8 @@ Pipeline inside `generate()`:
 3. Build Mermaid representation
 4. Build explanation sections
 5. Build Terraform starter output
-6. Return one normalized response object
+6. Validate and score the architecture
+7. Return one normalized response object
 
 This service keeps the architecture generation path composable and testable.
 
@@ -183,6 +184,8 @@ Current behavior:
 - common prompts can use a fast heuristic path for speed
 - complex prompts can use an LLM parser
 - if the LLM path fails, the system falls back to heuristics
+- a lightweight pattern ranker scores the prompt against known architecture packs
+- top retrieval matches and classification confidence are carried into the final response
 
 Important parser responsibilities:
 
@@ -202,6 +205,24 @@ Why this is powerful:
 
 - it prevents every prompt from collapsing into the same generic web app pattern
 - it allows the same UI to solve different classes of architecture problems
+
+### 4.4a Pattern Ranking Layer
+
+Files:
+
+- [pattern_library.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/services/pattern_library.py)
+- [intent_parser.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/services/intent_parser.py)
+
+This is a lightweight local ranking layer that behaves like a small retrieval/classification model.
+
+What it does:
+
+- scores the prompt against curated architecture packs
+- returns the closest pattern matches
+- boosts domain and archetype selection
+- improves confidence scoring
+
+It is not a trained ML model yet, but it is the first real model-like ranking layer in the product.
 
 ### 4.5 Cloud Mapping Engine
 
@@ -258,6 +279,25 @@ This service builds:
 - recommended next steps
 
 This turns the output from “diagram only” into “architect-ready deliverable”.
+
+### 4.7a Architecture Validator
+
+File: [architecture_validator.py](/Users/kasisureshdevarajugattu/Coding/AI-Arch/backend/app/services/architecture_validator.py)
+
+This service scores the architecture after generation.
+
+Outputs:
+
+- confidence score
+- matched pattern
+- validation findings
+
+Examples of checks:
+
+- missing expected components for a known pattern
+- missing secrets management for sensitive workloads
+- missing edge layer for multi-region/global prompts
+- missing queue/cache for traffic-heavy transactional systems
 
 ### 4.8 Terraform Starter Builder
 

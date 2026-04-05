@@ -23,6 +23,9 @@ export function ArchitectureReport({
 }: ArchitectureReportProps) {
   const deferredArchitecture = useDeferredValue(architecture);
   const confidenceScore = deferredArchitecture.confidence_score ?? 0;
+  const classificationConfidence =
+    deferredArchitecture.classification_confidence ?? 0;
+  const retrievalMatches = deferredArchitecture.retrieval_matches ?? [];
   const validatorFindings = deferredArchitecture.validator_findings ?? [];
   const [exportStatus, setExportStatus] = useState("");
 
@@ -42,6 +45,10 @@ export function ArchitectureReport({
     anchor.click();
     URL.revokeObjectURL(objectUrl);
     setExportStatus("Architecture JSON downloaded.");
+  }
+
+  function formatKey(value: string) {
+    return value.replace(/_/g, " ");
   }
 
   return (
@@ -164,6 +171,10 @@ export function ArchitectureReport({
               <strong>{deferredArchitecture.matched_pattern ?? "No direct pattern match"}</strong>
             </div>
             <div>
+              <span>Classifier confidence</span>
+              <strong>{Math.round(classificationConfidence * 100)}%</strong>
+            </div>
+            <div>
               <span>Validation findings</span>
               <strong>{validatorFindings.length}</strong>
             </div>
@@ -181,6 +192,31 @@ export function ArchitectureReport({
             ))}
           </ul>
         </article>
+      </section>
+
+      <section className="card">
+        <div className="section-heading">
+          <p className="eyebrow">Pattern Ranking</p>
+          <h2>Closest solution matches</h2>
+        </div>
+        {retrievalMatches.length > 0 ? (
+          <div className="content-stack">
+            {retrievalMatches.map((match) => (
+              <article key={match.pattern_id} className="narrative-block">
+                <h3>{match.title}</h3>
+                <p>
+                  Domain: {formatKey(match.domain)}. Archetype:{" "}
+                  {formatKey(match.archetype)}.
+                </p>
+                <p>Similarity score: {Math.round(match.score * 100)}%</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="section-copy">
+            No strong reference pattern was matched for this architecture prompt.
+          </p>
+        )}
       </section>
 
       <section className="card">
