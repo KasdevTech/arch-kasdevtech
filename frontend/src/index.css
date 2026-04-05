@@ -251,12 +251,25 @@ button {
   font-weight: 700;
 }
 
+.marketing-links a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.marketing-links a:hover {
+  color: rgba(255, 255, 255, 0.96);
+}
+
 .hero-section {
   display: grid;
   grid-template-columns: minmax(360px, 0.84fr) minmax(520px, 1fr);
   gap: 48px;
   align-items: stretch;
   margin-bottom: 40px;
+}
+
+.content-hero {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .hero-copy h1 {

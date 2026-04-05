@@ -2,7 +2,10 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
 import { ArchitectChatWidget } from "./components/ArchitectChatWidget";
 import { ArchitectureDetailPage } from "./pages/ArchitectureDetailPage";
+import { BlogPage } from "./pages/BlogPage";
 import { ChatPage } from "./pages/ChatPage";
+import { ContactPage } from "./pages/ContactPage";
+import { DocsPage } from "./pages/DocsPage";
 import { LandingPage } from "./pages/LandingPage";
 import { ProjectOverviewPage } from "./pages/ProjectOverviewPage";
 import { ProjectShipPage } from "./pages/ProjectShipPage";
@@ -15,6 +18,9 @@ function App() {
     <>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/docs" element={<DocsPage />} />
+        <Route path="/blog" element={<BlogPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         <Route path="/app" element={<AppLayout />}>
           <Route index element={<Navigate to="/app/studio" replace />} />
           <Route path="studio" element={<StudioPage />} />

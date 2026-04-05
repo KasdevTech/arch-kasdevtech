@@ -2,7 +2,12 @@ import { Link } from "react-router-dom";
 import { ArchitectureBoard } from "../components/ArchitectureBoard";
 import { ARCHITECTURE_TEMPLATES } from "../data/catalog";
 
-const NAV_LINKS = ["Product", "Docs", "Blog", "Contact"];
+const NAV_LINKS = [
+  { label: "Product", to: "#product" },
+  { label: "Docs", to: "/docs" },
+  { label: "Blog", to: "/blog" },
+  { label: "Contact", to: "/contact" },
+];
 
 const TRUST_POINTS = [
   "Azure",
@@ -41,7 +46,15 @@ export function LandingPage() {
 
         <nav className="marketing-links">
           {NAV_LINKS.map((link) => (
-            <span key={link}>{link}</span>
+            link.to.startsWith("#") ? (
+              <a key={link.label} href={link.to}>
+                {link.label}
+              </a>
+            ) : (
+              <Link key={link.label} to={link.to}>
+                {link.label}
+              </Link>
+            )
           ))}
         </nav>
 
@@ -111,7 +124,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="marketing-section">
+      <section className="marketing-section" id="product">
         <div className="feature-grid">
           {PLATFORM_PILLARS.map((feature) => (
             <article key={feature.title} className="card marketing-card">
