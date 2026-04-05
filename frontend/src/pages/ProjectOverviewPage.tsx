@@ -4,7 +4,7 @@ import { ArchitectureBoard } from "../components/ArchitectureBoard";
 import { ArchitectureReport } from "../components/ArchitectureReport";
 import { HardLink } from "../components/HardLink";
 import { useArchitectureStore } from "../context/ArchitectureStore";
-import type { ProjectHistoryResponse, ServiceMapping } from "../types";
+import type { Connection, ProjectHistoryResponse, ServiceMapping } from "../types";
 import type { ProjectRouteContext } from "./ArchitectureDetailPage";
 
 interface ProjectOverviewPageProps {
@@ -21,6 +21,7 @@ export function ProjectOverviewPage(props: ProjectOverviewPageProps = {}) {
   const { saveProject, updateCanvasLayout, loadProjectHistory, restoreProject } =
     useArchitectureStore();
   const [services, setServices] = useState<ServiceMapping[]>(architecture.services);
+  const [connections, setConnections] = useState<Connection[]>(architecture.connections);
   const [history, setHistory] = useState<ProjectHistoryResponse | null>(null);
   const [saving, setSaving] = useState(false);
   const [restoringVersionId, setRestoringVersionId] = useState<string | null>(null);
@@ -28,6 +29,10 @@ export function ProjectOverviewPage(props: ProjectOverviewPageProps = {}) {
 
   useEffect(() => {
     setServices(architecture.services);
+  }, [architecture]);
+
+  useEffect(() => {
+    setConnections(architecture.connections);
   }, [architecture]);
 
   useEffect(() => {
@@ -57,6 +62,7 @@ export function ProjectOverviewPage(props: ProjectOverviewPageProps = {}) {
       const rebuilt = await rebuildArchitecture({
         ...architecture,
         services,
+        connections,
       });
       await saveProject({
         ...rebuilt,
@@ -125,6 +131,8 @@ export function ProjectOverviewPage(props: ProjectOverviewPageProps = {}) {
       <ArchitectureBoard
         architecture={architecture}
         services={services}
+        connections={connections}
+        onConnectionsChange={setConnections}
         onLayoutChange={(layout) =>
           updateCanvasLayout(architecture.request_id, layout)
         }

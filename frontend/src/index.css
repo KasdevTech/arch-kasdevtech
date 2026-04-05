@@ -1684,6 +1684,10 @@ textarea:focus {
   height: auto;
 }
 
+.canvas-shell {
+  position: relative;
+}
+
 .canvas-node {
   transition: filter 180ms ease;
 }
@@ -1702,6 +1706,38 @@ textarea:focus {
 
 .canvas-node.is-locked:hover {
   filter: none;
+}
+
+.canvas-connection {
+  cursor: pointer;
+  transition: stroke 160ms ease, stroke-width 160ms ease;
+}
+
+.canvas-connection.is-selected {
+  stroke: #2dd4bf;
+  stroke-width: 5;
+}
+
+.canvas-inline-editor {
+  position: absolute;
+  z-index: 4;
+}
+
+.canvas-inline-input {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(45, 212, 191, 0.44);
+  background: rgba(15, 23, 42, 0.94);
+  color: #f8fafc;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.34);
+  font: 700 0.98rem/1.2 "Manrope", sans-serif;
+}
+
+.canvas-inline-input:focus {
+  outline: 2px solid rgba(45, 212, 191, 0.22);
+  outline-offset: 1px;
 }
 
 .board-inspector {
@@ -1749,6 +1785,7 @@ textarea:focus {
   background: rgba(255, 255, 255, 0.04);
   color: var(--text);
   text-align: left;
+  cursor: grab;
 }
 
 .symbol-chip img {

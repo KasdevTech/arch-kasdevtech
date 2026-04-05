@@ -38,6 +38,11 @@ type DragState = {
   offsetY: number;
 };
 
+type ConnectionSelection = {
+  source: string;
+  target: string;
+};
+
 type ServiceStencil = {
   type: ServiceMapping["type"];
   label: string;
@@ -800,8 +805,10 @@ function slugifyTitle(value: string) {
 export function ArchitectureBoard({
   architecture,
   services,
+  connections,
   onLayoutChange,
   onServicesChange,
+  onConnectionsChange,
   readOnly = false,
   showLegend = true,
   showToolbar = true,
@@ -809,27 +816,40 @@ export function ArchitectureBoard({
 }: {
   architecture: ArchitectureResponse;
   services?: ServiceMapping[];
+  connections?: Connection[];
   onLayoutChange?: (layout: CanvasLayout) => void;
   onServicesChange?: (services: ServiceMapping[]) => void;
+  onConnectionsChange?: (connections: Connection[]) => void;
   readOnly?: boolean;
   showLegend?: boolean;
   showToolbar?: boolean;
   showConnectionLabels?: boolean;
 }) {
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const canvasShellRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const activeArchitecture = services
-    ? { ...architecture, services }
+    ? { ...architecture, services, connections: connections ?? architecture.connections }
     : architecture;
   const [nodes, setNodes] = useState(() => buildNodes(activeArchitecture));
   const [exporting, setExporting] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedConnection, setSelectedConnection] = useState<ConnectionSelection | null>(null);
+  const [connectFromNodeId, setConnectFromNodeId] = useState<string | null>(null);
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [editingLabel, setEditingLabel] = useState("");
+  const [draggingStencilType, setDraggingStencilType] = useState<ServiceStencil["type"] | null>(null);
   const lanes = activeLanes(activeArchitecture);
   const lanePositions = laneXPositions(lanes);
-  const visibleConnections = connectionsForDisplay(activeArchitecture);
+  const effectiveConnections = connections ?? architecture.connections;
+  const visibleConnections = connectionsForDisplay({
+    ...activeArchitecture,
+    connections: effectiveConnections,
+  });
   const nodeMap = new Map(nodes.map((node) => [node.id, node]));
   const editableServices = services ?? architecture.services;
   const selectedService = editableServices.find((service) => service.id === selectedNodeId) ?? null;
+  const editingNode = nodes.find((node) => node.id === editingNodeId) ?? null;
 
   useEffect(() => {
     setNodes(buildNodes(activeArchitecture));
@@ -840,6 +860,19 @@ export function ArchitectureBoard({
       setSelectedNodeId(null);
     }
   }, [editableServices, selectedNodeId]);
+
+  useEffect(() => {
+    if (
+      selectedConnection &&
+      !effectiveConnections.some(
+        (connection) =>
+          connection.source === selectedConnection.source &&
+          connection.target === selectedConnection.target,
+      )
+    ) {
+      setSelectedConnection(null);
+    }
+  }, [effectiveConnections, selectedConnection]);
 
   useEffect(() => {
     function handlePointerMove(event: PointerEvent) {
@@ -917,6 +950,10 @@ export function ArchitectureBoard({
     onLayoutChange?.(buildCanvasLayout(resetNodes));
   }
 
+  function updateConnections(nextConnections: Connection[]) {
+    onConnectionsChange?.(nextConnections);
+  }
+
   function updateSelectedService(key: keyof ServiceMapping, value: string) {
     if (!selectedService || !onServicesChange) {
       return;
@@ -927,6 +964,40 @@ export function ArchitectureBoard({
         service.id === selectedService.id ? { ...service, [key]: value } : service,
       ),
     );
+  }
+
+  function startInlineEdit(nodeId: string) {
+    if (readOnly) {
+      return;
+    }
+
+    const service = editableServices.find((item) => item.id === nodeId);
+    if (!service) {
+      return;
+    }
+
+    setEditingNodeId(nodeId);
+    setEditingLabel(service.label);
+  }
+
+  function commitInlineEdit() {
+    if (!editingNodeId || !onServicesChange) {
+      setEditingNodeId(null);
+      setEditingLabel("");
+      return;
+    }
+
+    const trimmed = editingLabel.trim();
+    if (trimmed) {
+      onServicesChange(
+        editableServices.map((service) =>
+          service.id === editingNodeId ? { ...service, label: trimmed } : service,
+        ),
+      );
+    }
+
+    setEditingNodeId(null);
+    setEditingLabel("");
   }
 
   function removeSelectedService() {
@@ -945,10 +1016,17 @@ export function ArchitectureBoard({
       return;
     }
 
-    addServiceFromStencil(AZURE_STENCILS[0]);
+    addServiceFromStencilAtPosition(AZURE_STENCILS[0]);
   }
 
   function addServiceFromStencil(stencil: ServiceStencil) {
+    addServiceFromStencilAtPosition(stencil);
+  }
+
+  function addServiceFromStencilAtPosition(
+    stencil: ServiceStencil,
+    position?: { x: number; y: number },
+  ) {
     if (!onServicesChange) {
       return;
     }
@@ -966,6 +1044,17 @@ export function ArchitectureBoard({
 
     onServicesChange([...editableServices, nextService]);
     setSelectedNodeId(nextId);
+    setSelectedConnection(null);
+    setConnectFromNodeId(null);
+    if (position) {
+      onLayoutChange?.({
+        ...(activeArchitecture.canvas_layout ?? {}),
+        [nextId]: {
+          x: Math.round(position.x),
+          y: Math.round(position.y),
+        },
+      });
+    }
   }
 
   function applyStencilToSelected(stencil: ServiceStencil) {
@@ -987,6 +1076,82 @@ export function ArchitectureBoard({
           : service,
       ),
     );
+  }
+
+  function toggleConnectMode() {
+    if (!onConnectionsChange || readOnly) {
+      return;
+    }
+
+    setSelectedConnection(null);
+    setConnectFromNodeId((current) => {
+      if (current) {
+        return null;
+      }
+      return selectedNodeId;
+    });
+  }
+
+  function handleNodeClick(node: DiagramNode) {
+    if (node.locked || readOnly) {
+      return;
+    }
+
+    if (connectFromNodeId && connectFromNodeId !== node.id && onConnectionsChange) {
+      const alreadyConnected = effectiveConnections.some(
+        (connection) =>
+          connection.source === connectFromNodeId && connection.target === node.id,
+      );
+      if (!alreadyConnected) {
+        updateConnections([
+          ...effectiveConnections,
+          {
+            source: connectFromNodeId,
+            target: node.id,
+            dashed: false,
+            label: "Flow",
+          },
+        ]);
+      }
+      setConnectFromNodeId(null);
+      setSelectedNodeId(node.id);
+      return;
+    }
+
+    setSelectedConnection(null);
+    setSelectedNodeId(node.id);
+  }
+
+  function removeSelectedConnection() {
+    if (!selectedConnection || !onConnectionsChange) {
+      return;
+    }
+
+    updateConnections(
+      effectiveConnections.filter(
+        (connection) =>
+          !(
+            connection.source === selectedConnection.source &&
+            connection.target === selectedConnection.target
+          ),
+      ),
+    );
+    setSelectedConnection(null);
+  }
+
+  function pointToCanvasPosition(clientX: number, clientY: number) {
+    if (!svgRef.current) {
+      return { x: 240, y: 160 };
+    }
+
+    const rect = svgRef.current.getBoundingClientRect();
+    const svgX = ((clientX - rect.left) / rect.width) * VIEWBOX_WIDTH;
+    const svgY = ((clientY - rect.top) / rect.height) * VIEWBOX_HEIGHT;
+
+    return {
+      x: clamp(svgX - NODE_WIDTH / 2, 20, VIEWBOX_WIDTH - NODE_WIDTH - 20),
+      y: clamp(svgY - NODE_HEIGHT / 2, 32, VIEWBOX_HEIGHT - NODE_HEIGHT - 32),
+    };
   }
 
   async function exportSvg(filename: string) {
@@ -1094,6 +1259,18 @@ export function ArchitectureBoard({
               <button className="secondary-button" onClick={resetLayout} type="button">
                 Reset layout
               </button>
+              {!readOnly && onConnectionsChange ? (
+                <>
+                  <button className="secondary-button" onClick={toggleConnectMode} type="button">
+                    {connectFromNodeId ? "Cancel Connect" : "Connect Nodes"}
+                  </button>
+                  {selectedConnection ? (
+                    <button className="ghost-button" onClick={removeSelectedConnection} type="button">
+                      Remove Connection
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
               <button
                 className="secondary-button"
                 disabled={Boolean(exporting)}
@@ -1145,11 +1322,44 @@ export function ArchitectureBoard({
       {showToolbar ? (
         <div className="canvas-hint">
           <span>Drag any service card to rearrange the architecture.</span>
+          {!readOnly ? (
+            <span>Double-click a node to rename it. Drag symbols from the palette onto the canvas.</span>
+          ) : null}
+          {!readOnly && onConnectionsChange ? (
+            <span>
+              {connectFromNodeId
+                ? "Click a target node to create the connection."
+                : "Use Connect Nodes to add or remove flow lines manually."}
+            </span>
+          ) : null}
           <span>Layout autosaves on release for this project.</span>
         </div>
       ) : null}
 
-      <div className="canvas-shell">
+      <div
+        ref={canvasShellRef}
+        className="canvas-shell"
+        onDragOver={(event) => {
+          if (!readOnly) {
+            event.preventDefault();
+          }
+        }}
+        onDrop={(event) => {
+          if (readOnly || !draggingStencilType) {
+            return;
+          }
+          event.preventDefault();
+          const stencil = AZURE_STENCILS.find((item) => item.type === draggingStencilType);
+          if (!stencil) {
+            return;
+          }
+          addServiceFromStencilAtPosition(
+            stencil,
+            pointToCanvasPosition(event.clientX, event.clientY),
+          );
+          setDraggingStencilType(null);
+        }}
+      >
         <svg
           ref={svgRef}
           className="architecture-canvas"
@@ -1219,8 +1429,24 @@ export function ArchitectureBoard({
             return (
               <g key={`${connection.source}-${connection.target}-${connection.label ?? "line"}`}>
                 <path
+                  className={
+                    selectedConnection?.source === connection.source &&
+                    selectedConnection?.target === connection.target
+                      ? "canvas-connection is-selected"
+                      : "canvas-connection"
+                  }
                   d={pathBetween(source, target)}
                   fill="none"
+                  onClick={() => {
+                    if (!readOnly && onConnectionsChange) {
+                      setSelectedNodeId(null);
+                      setConnectFromNodeId(null);
+                      setSelectedConnection({
+                        source: connection.source,
+                        target: connection.target,
+                      });
+                    }
+                  }}
                   stroke={connection.dashed ? "#7dd3fc" : "#94a3b8"}
                   strokeDasharray={connection.dashed ? "10 10" : undefined}
                   strokeLinecap="round"
@@ -1253,11 +1479,8 @@ export function ArchitectureBoard({
                     ? "canvas-node is-selected"
                     : "canvas-node"
               }
-              onClick={() => {
-                if (!node.locked && !readOnly) {
-                  setSelectedNodeId(node.id);
-                }
-              }}
+              onClick={() => handleNodeClick(node)}
+              onDoubleClick={() => startInlineEdit(node.id)}
               onPointerDown={(event) => handlePointerDown(event, node)}
               style={{ cursor: readOnly || node.locked ? "default" : "grab" }}
             >
@@ -1309,6 +1532,35 @@ export function ArchitectureBoard({
             </g>
           ))}
         </svg>
+        {!readOnly && editingNode ? (
+          <div
+            className="canvas-inline-editor"
+            style={{
+              left: `calc(${(editingNode.x / VIEWBOX_WIDTH) * 100}% + 92px)`,
+              top: `calc(${(editingNode.y / VIEWBOX_HEIGHT) * 100}% + 18px)`,
+              width: `${((editingNode.width - 110) / VIEWBOX_WIDTH) * 100}%`,
+            }}
+          >
+            <input
+              autoFocus
+              className="canvas-inline-input"
+              onBlur={commitInlineEdit}
+              onChange={(event) => setEditingLabel(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitInlineEdit();
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setEditingNodeId(null);
+                  setEditingLabel("");
+                }
+              }}
+              value={editingLabel}
+            />
+          </div>
+        ) : null}
       </div>
 
       {showLegend ? (
@@ -1361,6 +1613,9 @@ export function ArchitectureBoard({
                           : "symbol-chip"
                       }
                       onClick={() => applyStencilToSelected(stencil)}
+                      onDragEnd={() => setDraggingStencilType(null)}
+                      onDragStart={() => setDraggingStencilType(stencil.type)}
+                      draggable
                       type="button"
                     >
                       <img alt={stencil.label} src={stencilImage(architecture.cloud, stencil)} />
@@ -1453,6 +1708,9 @@ export function ArchitectureBoard({
                     <button
                       key={`add-${stencil.type}`}
                       className="symbol-chip"
+                      draggable
+                      onDragEnd={() => setDraggingStencilType(null)}
+                      onDragStart={() => setDraggingStencilType(stencil.type)}
                       onClick={() => addServiceFromStencil(stencil)}
                       type="button"
                     >
