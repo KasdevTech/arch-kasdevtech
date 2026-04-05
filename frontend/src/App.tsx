@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
 import { ArchitectChatWidget } from "./components/ArchitectChatWidget";
 import { ArchitectureDetailPage } from "./pages/ArchitectureDetailPage";
@@ -11,9 +11,11 @@ import { ProjectsPage } from "./pages/ProjectsPage";
 import { StudioPage } from "./pages/StudioPage";
 
 function App() {
+  const location = useLocation();
+
   return (
     <>
-      <Routes>
+      <Routes location={location} key={location.pathname}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/docs" element={<DocsPage />} />
         <Route path="/blog" element={<BlogPage />} />
