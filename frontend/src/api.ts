@@ -7,9 +7,11 @@ import type {
   AzureDeploymentRequest,
   AzureDeploymentResponse,
   CanvasLayout,
+  DeploymentJobResponse,
   DeploymentRun,
   ProjectHistoryResponse,
   AzureDeploymentProfile,
+  WorkspaceSummaryResponse,
 } from "./types";
 
 const API_BASE_URL =
@@ -72,6 +74,35 @@ export async function deployToAzure(
   return response.json() as Promise<AzureDeploymentResponse>;
 }
 
+export async function queueAzureDeployment(
+  payload: AzureDeploymentRequest,
+): Promise<DeploymentJobResponse> {
+  const response = await fetch(`${API_BASE_URL}/architectures/deploy/azure/jobs`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || `Azure deployment queue failed with status ${response.status}.`);
+  }
+
+  return response.json() as Promise<DeploymentJobResponse>;
+}
+
+export async function getDeploymentJob(
+  jobId: string,
+): Promise<DeploymentJobResponse> {
+  const response = await fetch(`${API_BASE_URL}/architectures/deploy/jobs/${jobId}`);
+  if (!response.ok) {
+    throw new Error(`Deployment job lookup failed with status ${response.status}.`);
+  }
+  return response.json() as Promise<DeploymentJobResponse>;
+}
+
 export async function prepareAzureDeployment(
   payload: AzureDeploymentRequest,
 ): Promise<AzureDeploymentPrepareResponse> {
@@ -115,6 +146,14 @@ export async function listProjects(): Promise<ArchitectureResponse[]> {
     throw new Error(`Project listing failed with status ${response.status}.`);
   }
   return response.json() as Promise<ArchitectureResponse[]>;
+}
+
+export async function getWorkspaceSummary(): Promise<WorkspaceSummaryResponse> {
+  const response = await fetch(`${API_BASE_URL}/projects/workspace/summary`);
+  if (!response.ok) {
+    throw new Error(`Workspace summary failed with status ${response.status}.`);
+  }
+  return response.json() as Promise<WorkspaceSummaryResponse>;
 }
 
 export async function saveProjectRemote(
@@ -177,6 +216,23 @@ export async function updateDeploymentProfileRemote(
   });
   if (!response.ok) {
     throw new Error(`Deployment profile save failed with status ${response.status}.`);
+  }
+  return response.json() as Promise<ArchitectureResponse>;
+}
+
+export async function updateProjectMetadataRemote(
+  projectId: string,
+  payload: { title?: string; pinned?: boolean; last_opened_at?: string },
+): Promise<ArchitectureResponse> {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/metadata`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`Project metadata update failed with status ${response.status}.`);
   }
   return response.json() as Promise<ArchitectureResponse>;
 }

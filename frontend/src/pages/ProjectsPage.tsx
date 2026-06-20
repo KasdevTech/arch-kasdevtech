@@ -29,7 +29,7 @@ export function ProjectsPage() {
         <section className="card empty-card">
           <h2>No projects yet.</h2>
           <HardLink className="button-link primary" to="/app/studio">
-            Create your first project
+            Create first project
           </HardLink>
         </section>
       ) : null}

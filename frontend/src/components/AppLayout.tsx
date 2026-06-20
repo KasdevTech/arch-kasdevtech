@@ -12,23 +12,23 @@ const PAGE_TITLES: Array<{ prefix: string; title: string; subtitle: string }> = 
   {
     prefix: "/app/studio",
     title: "Create Project",
-    subtitle: "Shape a cloud architecture project.",
-  },
-  {
-    prefix: "/app/projects/",
-    title: "Project",
-    subtitle: "Review architecture and exports.",
+    subtitle: "Define the workload and generate a deployable workspace.",
   },
   {
     prefix: "/app/projects",
     title: "Projects",
-    subtitle: "Browse saved work.",
+    subtitle: "Saved architecture workspaces.",
+  },
+  {
+    prefix: "/app/chat",
+    title: "Architecture Copilot",
+    subtitle: "Chat, refine, and generate from one copilot thread.",
   },
 ];
 
 export function AppLayout() {
   const location = useLocation();
-  const { projects } = useArchitectureStore();
+  const { projects, workspaceSummary } = useArchitectureStore();
   const { theme, toggleTheme } = useTheme();
   const codeReadyProjects = projects.filter((project) => project.iac_template).length;
   const initials = "KS";
@@ -41,6 +41,13 @@ export function AppLayout() {
   const currentPage =
     PAGE_TITLES.find((item) => location.pathname.startsWith(item.prefix)) ??
     PAGE_TITLES[0];
+  const currentSection = location.pathname.endsWith("/code")
+    ? "Code"
+    : location.pathname.endsWith("/ship")
+      ? "Ship"
+      : location.pathname.includes("/app/projects/")
+        ? "Arch"
+        : currentPage.title;
 
   function isActivePath(target: string) {
     return location.pathname === target || location.pathname.startsWith(`${target}/`);
@@ -73,10 +80,36 @@ export function AppLayout() {
         <div className="sidebar-section">
           <p className="sidebar-section-label">Workspace</p>
           <div className="sidebar-rail-footer">
-            <span className="sidebar-mini-chip">{projects.length} projects</span>
-            <span className="sidebar-mini-chip">{codeReadyProjects} code-ready</span>
+            <span className="sidebar-mini-chip">
+              {workspaceSummary?.total_projects ?? projects.length} projects
+            </span>
+            <span className="sidebar-mini-chip">
+              {workspaceSummary?.code_ready_projects ?? codeReadyProjects} code-ready
+            </span>
           </div>
         </div>
+
+        {workspaceSummary?.recent_projects?.length ? (
+          <div className="sidebar-section">
+            <p className="sidebar-section-label">Recent</p>
+            <div className="sidebar-project-list">
+              {workspaceSummary.recent_projects.slice(0, 4).map((project) => (
+                <HardLink
+                  key={`recent-${project.request_id}`}
+                  className={
+                    project.request_id === activeProjectId
+                      ? "sidebar-project-link active"
+                      : "sidebar-project-link"
+                  }
+                  to={`/app/projects/${project.request_id}/arch`}
+                >
+                  <strong>{project.title}</strong>
+                  <span>{project.cloud.toUpperCase()}</span>
+                </HardLink>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div className="sidebar-project-section">
           <div className="project-rail-card">
@@ -116,7 +149,7 @@ export function AppLayout() {
                 </HardLink>
               </nav>
             ) : (
-              <p className="project-rail-empty">Open a project to switch between architecture, code, and deployment.</p>
+              <p className="project-rail-empty">Open a project to work in Arch, Code, and Ship.</p>
             )}
           </div>
         </div>
@@ -128,10 +161,20 @@ export function AppLayout() {
             <div className="workspace-breadcrumbs">
               <HardLink to="/app/projects">Organization</HardLink>
               <span>/</span>
-              <span>{currentPage.title}</span>
+              <span>{activeProject ? activeProject.title : currentPage.title}</span>
+              {activeProject ? (
+                <>
+                  <span>/</span>
+                  <span>{currentSection}</span>
+                </>
+              ) : null}
             </div>
-            <h1>{currentPage.title}</h1>
-            <p className="topbar-copy minimal">{currentPage.subtitle}</p>
+            <h1>{activeProject ? activeProject.title : currentPage.title}</h1>
+            <p className="topbar-copy minimal">
+              {activeProject
+                ? `${currentSection} workspace`
+                : currentPage.subtitle}
+            </p>
           </div>
 
           <div className="topbar-right">

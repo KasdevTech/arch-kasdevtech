@@ -8,12 +8,14 @@ import {
 } from "react";
 import {
   deleteProjectRemote,
+  getWorkspaceSummary,
   getProjectHistory,
   listProjects,
   restoreProjectVersion,
   saveProjectRemote,
   updateCanvasLayoutRemote,
   updateDeploymentProfileRemote,
+  updateProjectMetadataRemote,
 } from "../api";
 import type {
   ArchitectureResponse,
@@ -21,6 +23,7 @@ import type {
   CanvasLayout,
   DeploymentRun,
   ProjectHistoryResponse,
+  WorkspaceSummaryResponse,
 } from "../types";
 
 const STORAGE_KEY = "ai-architect-projects";
@@ -37,8 +40,14 @@ interface ArchitectureStoreValue {
     profile: AzureDeploymentProfile,
     run: DeploymentRun | null,
   ) => Promise<void>;
+  updateProjectMetadata: (
+    projectId: string,
+    payload: { title?: string; pinned?: boolean; last_opened_at?: string },
+  ) => Promise<void>;
   loadProjectHistory: (projectId: string) => Promise<ProjectHistoryResponse>;
   restoreProject: (projectId: string, versionId: string) => Promise<ArchitectureResponse>;
+  workspaceSummary: WorkspaceSummaryResponse | null;
+  refreshWorkspaceSummary: () => Promise<void>;
 }
 
 const ArchitectureStoreContext = createContext<ArchitectureStoreValue | null>(null);
@@ -59,6 +68,7 @@ function readLocalProjects(): ArchitectureResponse[] {
 export function ArchitectureStoreProvider({ children }: PropsWithChildren) {
   const [hydrated, setHydrated] = useState(false);
   const [projects, setProjects] = useState<ArchitectureResponse[]>([]);
+  const [workspaceSummary, setWorkspaceSummary] = useState<WorkspaceSummaryResponse | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -73,6 +83,11 @@ export function ArchitectureStoreProvider({ children }: PropsWithChildren) {
         if (remoteProjects.length > 0) {
           setProjects(remoteProjects);
           window.localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteProjects));
+          try {
+            setWorkspaceSummary(await getWorkspaceSummary());
+          } catch {
+            setWorkspaceSummary(null);
+          }
           setHydrated(true);
           return;
         }
@@ -88,6 +103,11 @@ export function ArchitectureStoreProvider({ children }: PropsWithChildren) {
           }
           setProjects(imported);
           window.localStorage.setItem(STORAGE_KEY, JSON.stringify(imported));
+          try {
+            setWorkspaceSummary(await getWorkspaceSummary());
+          } catch {
+            setWorkspaceSummary(null);
+          }
           setHydrated(true);
           return;
         }
@@ -138,6 +158,11 @@ export function ArchitectureStoreProvider({ children }: PropsWithChildren) {
     try {
       const persisted = await saveProjectRemote(project, changeNote);
       setProjects((current) => [persisted, ...current.filter((item) => item.request_id !== persisted.request_id)]);
+      try {
+        setWorkspaceSummary(await getWorkspaceSummary());
+      } catch {
+        // no-op
+      }
       return persisted;
     } catch {
       return optimistic;
@@ -149,6 +174,11 @@ export function ArchitectureStoreProvider({ children }: PropsWithChildren) {
     setProjects((current) => current.filter((item) => item.request_id !== projectId));
     try {
       await deleteProjectRemote(projectId);
+      try {
+        setWorkspaceSummary(await getWorkspaceSummary());
+      } catch {
+        // no-op
+      }
     } catch {
       setProjects(previous);
       throw new Error("Unable to remove project right now.");
@@ -188,8 +218,39 @@ export function ArchitectureStoreProvider({ children }: PropsWithChildren) {
       setProjects((current) =>
         current.map((item) => (item.request_id === projectId ? persisted : item)),
       );
+      try {
+        setWorkspaceSummary(await getWorkspaceSummary());
+      } catch {
+        // no-op
+      }
     } catch {
       // keep optimistic deployment state if backend is unavailable
+    }
+  }
+
+  async function updateProjectMetadata(
+    projectId: string,
+    payload: { title?: string; pinned?: boolean; last_opened_at?: string },
+  ) {
+    setProjects((current) =>
+      current.map((item) =>
+        item.request_id === projectId
+          ? { ...item, ...payload }
+          : item,
+      ),
+    );
+    try {
+      const persisted = await updateProjectMetadataRemote(projectId, payload);
+      setProjects((current) =>
+        current.map((item) => (item.request_id === projectId ? persisted : item)),
+      );
+      try {
+        setWorkspaceSummary(await getWorkspaceSummary());
+      } catch {
+        // no-op
+      }
+    } catch {
+      // keep optimistic metadata state if backend is unavailable
     }
   }
 
@@ -200,7 +261,20 @@ export function ArchitectureStoreProvider({ children }: PropsWithChildren) {
   async function restoreProject(projectId: string, versionId: string) {
     const restored = await restoreProjectVersion(projectId, versionId);
     setProjects((current) => [restored, ...current.filter((item) => item.request_id !== projectId)]);
+    try {
+      setWorkspaceSummary(await getWorkspaceSummary());
+    } catch {
+      // no-op
+    }
     return restored;
+  }
+
+  async function refreshWorkspaceSummary() {
+    try {
+      setWorkspaceSummary(await getWorkspaceSummary());
+    } catch {
+      setWorkspaceSummary(null);
+    }
   }
 
   return (
@@ -213,8 +287,11 @@ export function ArchitectureStoreProvider({ children }: PropsWithChildren) {
         saveProject,
         updateCanvasLayout,
         updateDeploymentProfile,
+        updateProjectMetadata,
         loadProjectHistory,
         restoreProject,
+        workspaceSummary,
+        refreshWorkspaceSummary,
       }}
     >
       {children}

@@ -1,14 +1,15 @@
-import { useState } from "react";
-import { deployToAzure, prepareAzureDeployment } from "../api";
+import { useEffect, useState } from "react";
+import { useOutletContext } from "react-router-dom";
+import { getDeploymentJob, prepareAzureDeployment, queueAzureDeployment } from "../api";
 import { useArchitectureStore } from "../context/ArchitectureStore";
 import type {
   AzureAuthMode,
   AzureDeploymentPlanItem,
   AzureDeploymentPrepareResponse,
-  AzureDeploymentResponse,
   AzureDeploymentProfile,
   ServiceMapping,
   DeploymentRun,
+  DeploymentJobResponse,
 } from "../types";
 import type { ProjectRouteContext } from "./ArchitectureDetailPage";
 
@@ -216,27 +217,30 @@ function downloadScript(title: string, commands: string[]) {
 }
 
 export function ProjectShipPage(props: ProjectShipPageProps = {}) {
-  if (!props.architecture) {
+  const routeContext = useOutletContext<ProjectRouteContext | undefined>();
+  const architecture = props.architecture ?? routeContext?.architecture;
+  if (!architecture) {
     return null;
   }
-  const architecture = props.architecture;
+  const project = architecture;
   const { updateDeploymentProfile } = useArchitectureStore();
   const [profile, setProfile] = useState<AzureDeploymentProfile>(
-    architecture.azure_deployment_profile ??
-      buildDefaultProfile(architecture.title),
+    project.azure_deployment_profile ??
+      buildDefaultProfile(project.title),
   );
   const [preparedRun, setPreparedRun] = useState<DeploymentRun | null>(
-    architecture.deployment_run ?? null,
+    project.deployment_run ?? null,
   );
   const [preparedPlan, setPreparedPlan] = useState<AzureDeploymentPrepareResponse | null>(null);
   const [deploying, setDeploying] = useState(false);
   const [deployError, setDeployError] = useState("");
   const [deployLogs, setDeployLogs] = useState<string[]>(
-    architecture.deployment_run?.command_preview ?? [],
+    project.deployment_run?.command_preview ?? [],
   );
+  const [deploymentJob, setDeploymentJob] = useState<DeploymentJobResponse | null>(null);
 
   const commands = buildCommandPreview(profile);
-  const fallbackPlan = buildShipPlan(architecture.title, profile, architecture.services);
+  const fallbackPlan = buildShipPlan(project.title, profile, project.services);
   const shipPlan: AzureDeploymentPlanItem[] =
     preparedPlan?.plan_items ??
     fallbackPlan.map((resource) => ({
@@ -262,12 +266,12 @@ export function ProjectShipPage(props: ProjectShipPageProps = {}) {
     setDeployError("");
     try {
       const response = await prepareAzureDeployment({
-        project_id: architecture.request_id,
-        project_title: architecture.title,
-        cloud: architecture.cloud,
+        project_id: project.request_id,
+        project_title: project.title,
+        cloud: project.cloud,
         profile,
-        preferences: architecture.preferences,
-        services: architecture.services,
+        preferences: project.preferences,
+        services: project.services,
       });
       setPreparedPlan(response);
       const run: DeploymentRun = {
@@ -278,7 +282,7 @@ export function ProjectShipPage(props: ProjectShipPageProps = {}) {
       };
       setPreparedRun(run);
       setDeployLogs(response.command_preview);
-      void updateDeploymentProfile(architecture.request_id, profile, run);
+      void updateDeploymentProfile(project.request_id, profile, run);
     } catch (error) {
       setDeployError(
         error instanceof Error
@@ -300,32 +304,28 @@ export function ProjectShipPage(props: ProjectShipPageProps = {}) {
     };
 
     setPreparedRun(deployingRun);
-    void updateDeploymentProfile(architecture.request_id, profile, deployingRun);
+    void updateDeploymentProfile(project.request_id, profile, deployingRun);
 
     try {
       setPreparedPlan(null);
-      const response: AzureDeploymentResponse = await deployToAzure({
-        project_id: architecture.request_id,
-        project_title: architecture.title,
-        cloud: architecture.cloud,
+      const job = await queueAzureDeployment({
+        project_id: project.request_id,
+        project_title: project.title,
+        cloud: project.cloud,
         profile,
-        preferences: architecture.preferences,
-        services: architecture.services,
+        preferences: project.preferences,
+        services: project.services,
       });
-
-      const deployedRun: DeploymentRun = {
-        status: response.status === "partial" ? "ready" : "deployed",
-        summary:
-          response.skipped_services.length > 0
-            ? `Deployment completed with skips in ${response.resource_group}.`
-            : `Deployment completed for resource group ${response.resource_group}.`,
-        generated_at: response.deployed_at,
-        command_preview: response.logs,
+      setDeploymentJob(job);
+      setDeployLogs(job.logs);
+      const liveRun: DeploymentRun = {
+        status: "deploying",
+        summary: job.summary,
+        generated_at: job.updated_at,
+        command_preview: job.logs,
       };
-
-      setPreparedRun(deployedRun);
-      setDeployLogs(response.logs);
-      void updateDeploymentProfile(architecture.request_id, profile, deployedRun);
+      setPreparedRun(liveRun);
+      void updateDeploymentProfile(project.request_id, profile, liveRun);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Azure deployment failed.";
@@ -337,25 +337,90 @@ export function ProjectShipPage(props: ProjectShipPageProps = {}) {
       };
       setPreparedRun(failedRun);
       setDeployError(message);
-      void updateDeploymentProfile(architecture.request_id, profile, failedRun);
-    } finally {
-      setDeploying(false);
+      void updateDeploymentProfile(project.request_id, profile, failedRun);
     }
   }
+
+  useEffect(() => {
+    if (!deploymentJob) {
+      return;
+    }
+
+    if (deploymentJob.status !== "queued" && deploymentJob.status !== "running") {
+      setDeploying(false);
+      return;
+    }
+
+    let active = true;
+    const timer = window.setInterval(() => {
+      void (async () => {
+        try {
+          const latest = await getDeploymentJob(deploymentJob.job_id);
+          if (!active) {
+            return;
+          }
+
+          setDeploymentJob(latest);
+          setDeployLogs(latest.logs);
+
+          if (latest.status === "queued" || latest.status === "running") {
+            setPreparedRun({
+              status: "deploying",
+              summary: latest.summary,
+              generated_at: latest.updated_at,
+              command_preview: latest.logs,
+            });
+            void updateDeploymentProfile(project.request_id, profile, {
+              status: "deploying",
+              summary: latest.summary,
+              generated_at: latest.updated_at,
+              command_preview: latest.logs,
+            });
+            return;
+          }
+
+          const doneRun: DeploymentRun = {
+            status:
+              latest.status === "partial"
+                ? "ready"
+                : latest.status === "failed"
+                  ? "failed"
+                  : "deployed",
+            summary: latest.summary,
+            generated_at: latest.updated_at,
+            command_preview: latest.logs,
+          };
+          setPreparedRun(doneRun);
+          setDeploying(false);
+          void updateDeploymentProfile(project.request_id, profile, doneRun);
+          clearInterval(timer);
+        } catch {
+          if (active) {
+            setDeploying(false);
+          }
+        }
+      })();
+    }, 3000);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [deploymentJob?.job_id, deploymentJob?.status, profile, project.request_id, updateDeploymentProfile]);
 
   return (
     <div className="page-stack">
       <section className="quick-access-grid">
         <article className="card quick-access-card">
           <p className="eyebrow">Connection</p>
-          <h3>Connect Azure tenant or SPN</h3>
-          <p>Provide tenant and subscription details before preparing deployment into a resource group.</p>
+          <h3>Connect Azure</h3>
+          <p>Provide tenant, subscription, and auth details.</p>
         </article>
 
         <article className="card quick-access-card">
           <p className="eyebrow">Deploy</p>
-          <h3>Ship into a resource group</h3>
-          <p>Bootstrap Azure access, create the resource group, then run Terraform plan and apply for supported resources.</p>
+          <h3>Ship to a resource group</h3>
+          <p>Prepare first, review what will deploy, then apply.</p>
         </article>
       </section>
 
@@ -529,11 +594,19 @@ export function ProjectShipPage(props: ProjectShipPageProps = {}) {
               <p>{profile.resource_group}</p>
             </article>
             <article className="studio-helper-card">
+              <strong>Queue</strong>
+              <p>
+                {deploymentJob
+                  ? `${deploymentJob.status.toUpperCase()} • ${deploymentJob.project_title}`
+                  : "Deployment jobs are queued in the background."}
+              </p>
+            </article>
+            <article className="studio-helper-card">
               <strong>IaC readiness</strong>
               <p>
-                {architecture.iac_template
-                  ? "Code output is available and will continue to regenerate from architecture changes."
-                  : "Deployment can run for supported services even if code output is not attached."}
+                {project.iac_template
+                  ? "Terraform is generated from the current architecture and reused during deploy."
+                  : "Direct deploy can still run for supported services, but no full Terraform bundle is attached."}
               </p>
             </article>
             <article className="studio-helper-card">

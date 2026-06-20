@@ -10,3 +10,7 @@ dist/
 frontend/dist/
 backend/.env
 *.tsbuildinfo
+.vscode/
+Ollama/
+backend/data/*.json
+!backend/data/.gitkeep

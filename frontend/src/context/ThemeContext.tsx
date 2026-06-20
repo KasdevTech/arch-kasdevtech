@@ -21,13 +21,15 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: PropsWithChildren) {
   const location = useLocation();
-  const [theme, setTheme] = useState<AppTheme>("light");
+  const [theme, setTheme] = useState<AppTheme>("dark");
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY) as AppTheme | null;
     if (stored === "light" || stored === "dark") {
       setTheme(stored);
+      return;
     }
+    setTheme(window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   }, []);
 
   useEffect(() => {
@@ -37,10 +39,7 @@ export function ThemeProvider({ children }: PropsWithChildren) {
   }, [theme]);
 
   useEffect(() => {
-    if (
-      location.pathname === "/app/studio" ||
-      location.pathname.includes("/app/projects/") && location.pathname.endsWith("/edit")
-    ) {
+    if (location.pathname.startsWith("/app/") && !window.localStorage.getItem(STORAGE_KEY)) {
       setTheme("dark");
     }
   }, [location.pathname]);

@@ -1,3 +1,4 @@
+import { useOutletContext } from "react-router-dom";
 import { TerraformModulesPage } from "../components/TerraformModulesPage";
 import type { ProjectRouteContext } from "./ArchitectureDetailPage";
 
@@ -6,9 +7,10 @@ interface ProjectTerraformPageProps {
 }
 
 export function ProjectTerraformPage(props: ProjectTerraformPageProps = {}) {
-  if (!props.architecture) {
+  const routeContext = useOutletContext<ProjectRouteContext | undefined>();
+  const architecture = props.architecture ?? routeContext?.architecture;
+  if (!architecture) {
     return null;
   }
-  const architecture = props.architecture;
   return <TerraformModulesPage architecture={architecture} />;
 }

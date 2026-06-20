@@ -199,6 +199,8 @@ class ArchitectureResponse(BaseModel):
     version_number: int = 1
     title: str
     summary: str
+    pinned: bool = False
+    last_opened_at: Optional[datetime] = None
     cloud: CloudProvider
     domain: SolutionDomain = SolutionDomain.enterprise_application
     archetype: SolutionArchetype = SolutionArchetype.transactional_saas
@@ -221,6 +223,10 @@ class ArchitectureResponse(BaseModel):
     validator_findings: list[ArchitectureValidationFinding] = Field(default_factory=list)
     mermaid: str
     iac_template: Optional[str] = None
+    source_request: Optional["ArchitectureRequest"] = None
+    canvas_layout: Optional[dict[str, dict[str, float]]] = None
+    azure_deployment_profile: Optional["AzureDeploymentProfile"] = None
+    deployment_run: Optional["DeploymentRun"] = None
 
 
 class AzureAuthenticationMode(str, Enum):
@@ -237,6 +243,13 @@ class AzureDeploymentProfile(BaseModel):
     resource_group: str = Field(min_length=2, max_length=120)
     location: str = Field(min_length=2, max_length=120)
     deployment_name: str = Field(min_length=2, max_length=120)
+
+
+class DeploymentRun(BaseModel):
+    status: str
+    summary: str
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    command_preview: list[str] = Field(default_factory=list)
 
 
 class AzureDeploymentRequest(BaseModel):
@@ -309,7 +322,13 @@ class CanvasLayoutUpdateRequest(BaseModel):
 
 class DeploymentProfileUpdateRequest(BaseModel):
     profile: AzureDeploymentProfile
-    run: Optional[dict] = None
+    run: Optional[DeploymentRun] = None
+
+
+class ProjectMetadataUpdateRequest(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=2, max_length=200)
+    pinned: Optional[bool] = None
+    last_opened_at: Optional[datetime] = None
 
 
 class ArchitectureRebuildRequest(BaseModel):
@@ -337,3 +356,47 @@ class ArchitectChatResponse(BaseModel):
     reply: str
     generated_architecture: Optional[ArchitectureResponse] = None
     ready_to_generate: bool = False
+
+
+class DeploymentJobStatus(str, Enum):
+    queued = "queued"
+    running = "running"
+    deployed = "deployed"
+    partial = "partial"
+    failed = "failed"
+
+
+class DeploymentJobResponse(BaseModel):
+    job_id: str
+    project_id: str
+    project_title: str
+    cloud: CloudProvider
+    status: DeploymentJobStatus
+    summary: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    resource_group: str
+    location: str
+    deployment_name: str
+    logs: list[str] = Field(default_factory=list)
+    deployed_services: list[str] = Field(default_factory=list)
+    skipped_services: list[str] = Field(default_factory=list)
+
+
+class WorkspaceActivityItem(BaseModel):
+    activity_id: str
+    kind: str
+    title: str
+    detail: str
+    occurred_at: datetime
+    project_id: Optional[str] = None
+
+
+class WorkspaceSummaryResponse(BaseModel):
+    organization_name: str
+    total_projects: int
+    pinned_projects: int
+    code_ready_projects: int
+    recent_projects: list[ArchitectureResponse] = Field(default_factory=list)
+    recent_activity: list[WorkspaceActivityItem] = Field(default_factory=list)
+    active_deployments: list[DeploymentJobResponse] = Field(default_factory=list)

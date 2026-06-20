@@ -1,4 +1,5 @@
 import { HardLink } from "./HardLink";
+import { useArchitectureStore } from "../context/ArchitectureStore";
 import type { ArchitectureResponse } from "../types";
 import { VALUE_LABELS } from "../data/catalog";
 
@@ -15,6 +16,8 @@ function formatDate(value: string) {
 }
 
 export function ProjectCard({ architecture }: ProjectCardProps) {
+  const { updateProjectMetadata } = useArchitectureStore();
+
   return (
     <article className="card project-card">
       <div className="project-card-head">
@@ -22,7 +25,20 @@ export function ProjectCard({ architecture }: ProjectCardProps) {
           <p className="eyebrow">Project</p>
           <h3>{architecture.title}</h3>
         </div>
-        <span className="cloud-pill">{architecture.cloud.toUpperCase()}</span>
+        <div className="project-card-actions">
+          <button
+            className={architecture.pinned ? "pin-button active" : "pin-button"}
+            onClick={() =>
+              void updateProjectMetadata(architecture.request_id, {
+                pinned: !architecture.pinned,
+              })
+            }
+            type="button"
+          >
+            {architecture.pinned ? "Pinned" : "Pin"}
+          </button>
+          <span className="cloud-pill">{architecture.cloud.toUpperCase()}</span>
+        </div>
       </div>
 
       <p className="project-summary compact">{architecture.summary}</p>
@@ -51,7 +67,7 @@ export function ProjectCard({ architecture }: ProjectCardProps) {
           <strong>{architecture.cloud.toUpperCase()}</strong>
         </div>
         <div>
-          <span>Score</span>
+          <span>Services</span>
           <strong>{architecture.services.length}</strong>
         </div>
       </div>

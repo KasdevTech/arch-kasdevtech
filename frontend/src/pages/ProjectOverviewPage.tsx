@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 import { rebuildArchitecture } from "../api";
 import { ArchitectureBoard } from "../components/ArchitectureBoard";
 import { ArchitectureReport } from "../components/ArchitectureReport";
@@ -13,33 +14,36 @@ interface ProjectOverviewPageProps {
 }
 
 export function ProjectOverviewPage(props: ProjectOverviewPageProps = {}) {
-  if (!props.architecture) {
+  const routeContext = useOutletContext<ProjectRouteContext | undefined>();
+  const architecture = props.architecture ?? routeContext?.architecture;
+  const onDelete = props.onDelete ?? routeContext?.onDelete;
+
+  if (!architecture) {
     return null;
   }
-  const architecture = props.architecture;
-  const onDelete = props.onDelete;
+  const project = architecture;
   const { saveProject, updateCanvasLayout, loadProjectHistory, restoreProject } =
     useArchitectureStore();
-  const [services, setServices] = useState<ServiceMapping[]>(architecture.services);
-  const [connections, setConnections] = useState<Connection[]>(architecture.connections);
+  const [services, setServices] = useState<ServiceMapping[]>(project.services);
+  const [connections, setConnections] = useState<Connection[]>(project.connections);
   const [history, setHistory] = useState<ProjectHistoryResponse | null>(null);
   const [saving, setSaving] = useState(false);
   const [restoringVersionId, setRestoringVersionId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setServices(architecture.services);
-  }, [architecture]);
+    setServices(project.services);
+  }, [project]);
 
   useEffect(() => {
-    setConnections(architecture.connections);
-  }, [architecture]);
+    setConnections(project.connections);
+  }, [project]);
 
   useEffect(() => {
     let active = true;
     async function hydrateHistory() {
       try {
-        const response = await loadProjectHistory(architecture.request_id);
+        const response = await loadProjectHistory(project.request_id);
         if (active) {
           setHistory(response);
         }
@@ -53,7 +57,7 @@ export function ProjectOverviewPage(props: ProjectOverviewPageProps = {}) {
     return () => {
       active = false;
     };
-  }, [architecture.request_id]);
+  }, [project.request_id]);
 
   async function handleRegenerate() {
     setSaving(true);
@@ -61,17 +65,18 @@ export function ProjectOverviewPage(props: ProjectOverviewPageProps = {}) {
     try {
       const rebuilt = await rebuildArchitecture({
         ...architecture,
+        ...project,
         services,
         connections,
       });
       await saveProject({
         ...rebuilt,
-        source_request: architecture.source_request,
-        canvas_layout: architecture.canvas_layout,
-        azure_deployment_profile: architecture.azure_deployment_profile,
-        deployment_run: architecture.deployment_run,
+        source_request: project.source_request,
+        canvas_layout: project.canvas_layout,
+        azure_deployment_profile: project.azure_deployment_profile,
+        deployment_run: project.deployment_run,
       }, "Regenerated architecture from edited canvas");
-      setHistory(await loadProjectHistory(architecture.request_id));
+      setHistory(await loadProjectHistory(project.request_id));
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -87,8 +92,8 @@ export function ProjectOverviewPage(props: ProjectOverviewPageProps = {}) {
     setRestoringVersionId(versionId);
     setError("");
     try {
-      await restoreProject(architecture.request_id, versionId);
-      setHistory(await loadProjectHistory(architecture.request_id));
+      await restoreProject(project.request_id, versionId);
+      setHistory(await loadProjectHistory(project.request_id));
     } catch (restoreError) {
       setError(
         restoreError instanceof Error
@@ -102,39 +107,41 @@ export function ProjectOverviewPage(props: ProjectOverviewPageProps = {}) {
 
   return (
     <div className="page-stack">
-      <section className="quick-access-grid">
-        <article className="card quick-access-card">
-          <p className="eyebrow">Code</p>
-          <h3>Open infrastructure code</h3>
-          <p>Review provider baseline and per-component modules.</p>
-          <HardLink
-            className="inline-link"
-            to={`/app/projects/${architecture.request_id}/code`}
-          >
-            Go to Code
-          </HardLink>
+      <section className="workspace-hero-grid">
+        <article className="card workspace-hero-card">
+          <p className="eyebrow">Architecture</p>
+          <h3>{project.title}</h3>
+          <p className="project-summary compact">{project.summary}</p>
+          <div className="pill-row">
+            {project.priorities.slice(0, 4).map((priority) => (
+              <span className="priority-pill" key={priority}>
+                {priority.replace(/_/g, " ")}
+              </span>
+            ))}
+          </div>
         </article>
-
-        <article className="card quick-access-card">
-          <p className="eyebrow">Ship</p>
-          <h3>Connect Azure and prepare deploy</h3>
-          <p>Provide tenant or SPN details, choose a resource group, and prepare deployment.</p>
-          <HardLink
-            className="inline-link"
-            to={`/app/projects/${architecture.request_id}/ship`}
-          >
-            Go to Ship
-          </HardLink>
+        <article className="card workspace-hero-card">
+          <p className="eyebrow">Actions</p>
+          <div className="workspace-jump-grid">
+            <HardLink className="workspace-jump-card" to={`/app/projects/${project.request_id}/code`}>
+              <strong>Code</strong>
+              <span>Open Terraform output</span>
+            </HardLink>
+            <HardLink className="workspace-jump-card" to={`/app/projects/${project.request_id}/ship`}>
+              <strong>Ship</strong>
+              <span>Prepare and deploy</span>
+            </HardLink>
+          </div>
         </article>
       </section>
 
       <ArchitectureBoard
-        architecture={architecture}
+        architecture={project}
         services={services}
         connections={connections}
         onConnectionsChange={setConnections}
         onLayoutChange={(layout) =>
-          updateCanvasLayout(architecture.request_id, layout)
+          updateCanvasLayout(project.request_id, layout)
         }
         onServicesChange={setServices}
       />
@@ -142,8 +149,8 @@ export function ProjectOverviewPage(props: ProjectOverviewPageProps = {}) {
       <section className="card panel">
         <div className="compact-section-head">
           <div>
-            <p className="eyebrow">Architecture Model</p>
-            <h2>Regenerate from your canvas edits</h2>
+            <p className="eyebrow">Sync</p>
+            <h2>Regenerate project outputs</h2>
           </div>
           <div className="action-row">
             <button
@@ -159,13 +166,12 @@ export function ProjectOverviewPage(props: ProjectOverviewPageProps = {}) {
 
         {error ? <p className="error-banner">{error}</p> : null}
         <p className="section-copy">
-          Select components directly on the diagram to rename, change type, add new services,
-          or remove existing ones. Then regenerate to refresh the architecture, code, and deploy plan.
+          Edit the canvas, then rebuild to refresh the architecture, generated Terraform, and ship plan.
         </p>
       </section>
 
       <ArchitectureReport
-        architecture={architecture}
+        architecture={project}
         history={history}
         onDelete={onDelete}
         onRestoreVersion={handleRestore}

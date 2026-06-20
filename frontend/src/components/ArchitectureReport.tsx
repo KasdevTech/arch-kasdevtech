@@ -234,163 +234,151 @@ export function ArchitectureReport({
         )}
       </section>
 
-      <section className="card">
-        <div className="section-heading">
-          <p className="eyebrow">Pattern Ranking</p>
-          <h2>Closest solution matches</h2>
-        </div>
-        {retrievalMatches.length > 0 ? (
-          <div className="content-stack">
-            {retrievalMatches.map((match) => (
-              <article key={match.pattern_id} className="narrative-block">
-                <h3>{match.title}</h3>
-                <p>
-                  Domain: {formatKey(match.domain)}. Archetype:{" "}
-                  {formatKey(match.archetype)}.
-                </p>
-                <p>Similarity score: {Math.round(match.score * 100)}%</p>
+      <section className="details-stack">
+        <details className="card detail-panel" open>
+          <summary>
+            <span>Cloud components</span>
+            <small>{deferredArchitecture.services.length} services</small>
+          </summary>
+          <div className="service-grid">
+            {deferredArchitecture.services.map((service) => (
+              <article key={service.id} className="service-card">
+                <span className={`service-category ${service.category}`}>
+                  {service.category}
+                </span>
+                <h3>{service.cloud_service}</h3>
+                <p className="service-label">{service.label}</p>
+                <p>{service.rationale}</p>
               </article>
             ))}
           </div>
-        ) : (
-          <p className="section-copy">
-            No strong reference pattern was matched for this architecture prompt.
-          </p>
-        )}
-      </section>
+        </details>
 
-      <section className="card">
-        <div className="section-heading">
-          <p className="eyebrow">Validation</p>
-          <h2>Quality findings</h2>
-        </div>
-        {validatorFindings.length > 0 ? (
-          <div className="content-stack">
-            {validatorFindings.map((finding, index) => (
-              <article key={`${finding.severity}-${index}`} className="narrative-block">
-                <h3>{finding.severity.toUpperCase()}</h3>
-                <p>{finding.message}</p>
-                <p>{finding.recommendation}</p>
-              </article>
-            ))}
+        <details className="card detail-panel">
+          <summary>
+            <span>Validation and pattern matches</span>
+            <small>{validatorFindings.length} findings</small>
+          </summary>
+          <div className="page-stack">
+            {retrievalMatches.length > 0 ? (
+              <div className="content-stack">
+                {retrievalMatches.map((match) => (
+                  <article key={match.pattern_id} className="narrative-block">
+                    <h3>{match.title}</h3>
+                    <p>
+                      Domain: {formatKey(match.domain)}. Archetype: {formatKey(match.archetype)}.
+                    </p>
+                    <p>Similarity score: {Math.round(match.score * 100)}%</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="section-copy">No strong reference pattern was matched.</p>
+            )}
+            {validatorFindings.length > 0 ? (
+              <div className="content-stack">
+                {validatorFindings.map((finding, index) => (
+                  <article key={`${finding.severity}-${index}`} className="narrative-block">
+                    <h3>{finding.severity.toUpperCase()}</h3>
+                    <p>{finding.message}</p>
+                    <p>{finding.recommendation}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="section-copy">No material validation gaps were detected.</p>
+            )}
           </div>
-        ) : (
-          <p className="section-copy">
-            No material validation gaps were detected for the generated architecture pattern.
-          </p>
-        )}
-      </section>
+        </details>
 
-      <section className="card">
-        <div className="section-heading">
-          <p className="eyebrow">Mapped Services</p>
-          <h2>Cloud components</h2>
-        </div>
-        <div className="service-grid">
-          {deferredArchitecture.services.map((service) => (
-            <article key={service.id} className="service-card">
-              <span className={`service-category ${service.category}`}>
-                {service.category}
-              </span>
-              <h3>{service.cloud_service}</h3>
-              <p className="service-label">{service.label}</p>
-              <p>{service.rationale}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="card">
-        <div className="section-heading">
-          <p className="eyebrow">Narrative</p>
-          <h2>Architect notes</h2>
-        </div>
-        <div className="content-stack">
-          {deferredArchitecture.explanation_sections.map((section) => (
-            <article key={section.title} className="narrative-block">
-              <h3>{section.title}</h3>
-              <p>{section.body}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="card split-card enterprise-split">
-        <div>
-          <div className="section-heading">
-            <p className="eyebrow">Security</p>
-            <h2>Control posture</h2>
+        <details className="card detail-panel">
+          <summary>
+            <span>Architect notes and controls</span>
+            <small>Expanded analysis</small>
+          </summary>
+          <div className="page-stack">
+            <div className="content-stack">
+              {deferredArchitecture.explanation_sections.map((section) => (
+                <article key={section.title} className="narrative-block">
+                  <h3>{section.title}</h3>
+                  <p>{section.body}</p>
+                </article>
+              ))}
+            </div>
+            <section className="split-card enterprise-split">
+              <div>
+                <div className="section-heading">
+                  <p className="eyebrow">Security</p>
+                  <h2>Control posture</h2>
+                </div>
+                <ul className="detail-list">
+                  {deferredArchitecture.security_controls.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <div className="section-heading">
+                  <p className="eyebrow">Resilience</p>
+                  <h2>Continuity notes</h2>
+                </div>
+                <ul className="detail-list">
+                  {deferredArchitecture.resilience_notes.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+            <section className="split-card enterprise-split">
+              <div>
+                <div className="section-heading">
+                  <p className="eyebrow">Operations</p>
+                  <h2>Operating model</h2>
+                </div>
+                <ul className="detail-list">
+                  {deferredArchitecture.operational_controls.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <div className="section-heading">
+                  <p className="eyebrow">Risk Review</p>
+                  <h2>Architecture risks</h2>
+                </div>
+                <ul className="detail-list">
+                  {deferredArchitecture.risk_flags.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+            <section className="split-card enterprise-split">
+              <div>
+                <div className="section-heading">
+                  <p className="eyebrow">Assumptions</p>
+                  <h2>Inferred decisions</h2>
+                </div>
+                <ul className="detail-list">
+                  {deferredArchitecture.assumptions.map((assumption) => (
+                    <li key={assumption}>{assumption}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <div className="section-heading">
+                  <p className="eyebrow">Next Steps</p>
+                  <h2>Production hardening path</h2>
+                </div>
+                <ul className="detail-list">
+                  {deferredArchitecture.recommended_next_steps.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            </section>
           </div>
-          <ul className="detail-list">
-            {deferredArchitecture.security_controls.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </div>
-
-        <div>
-          <div className="section-heading">
-            <p className="eyebrow">Resilience</p>
-            <h2>Continuity notes</h2>
-          </div>
-          <ul className="detail-list">
-            {deferredArchitecture.resilience_notes.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section className="card split-card enterprise-split">
-        <div>
-          <div className="section-heading">
-            <p className="eyebrow">Operations</p>
-            <h2>Operating model</h2>
-          </div>
-          <ul className="detail-list">
-            {deferredArchitecture.operational_controls.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </div>
-
-        <div>
-          <div className="section-heading">
-            <p className="eyebrow">Risk Review</p>
-            <h2>Architecture risks</h2>
-          </div>
-          <ul className="detail-list">
-            {deferredArchitecture.risk_flags.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section className="card split-card enterprise-split">
-        <div>
-          <div className="section-heading">
-            <p className="eyebrow">Assumptions</p>
-            <h2>Inferred decisions</h2>
-          </div>
-          <ul className="detail-list">
-            {deferredArchitecture.assumptions.map((assumption) => (
-              <li key={assumption}>{assumption}</li>
-            ))}
-          </ul>
-        </div>
-
-        <div>
-          <div className="section-heading">
-            <p className="eyebrow">Next Steps</p>
-            <h2>Production hardening path</h2>
-          </div>
-          <ul className="detail-list">
-            {deferredArchitecture.recommended_next_steps.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </div>
+        </details>
       </section>
 
     </div>

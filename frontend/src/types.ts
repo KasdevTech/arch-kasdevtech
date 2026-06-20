@@ -112,6 +112,13 @@ export interface DeploymentRun {
   command_preview: string[];
 }
 
+export type DeploymentJobStatus =
+  | "queued"
+  | "running"
+  | "deployed"
+  | "partial"
+  | "failed";
+
 export interface AzureDeploymentPlanItem {
   service_id: string;
   title: string;
@@ -154,6 +161,23 @@ export interface AzureDeploymentResponse {
   deployed_at: string;
 }
 
+export interface DeploymentJobResponse {
+  job_id: string;
+  project_id: string;
+  project_title: string;
+  cloud: CloudProvider;
+  status: DeploymentJobStatus;
+  summary: string;
+  created_at: string;
+  updated_at: string;
+  resource_group: string;
+  location: string;
+  deployment_name: string;
+  logs: string[];
+  deployed_services: string[];
+  skipped_services: string[];
+}
+
 export interface CanvasPosition {
   x: number;
   y: number;
@@ -164,8 +188,12 @@ export type CanvasLayout = Record<string, CanvasPosition>;
 export interface ArchitectureResponse {
   request_id: string;
   created_at: string;
+  updated_at?: string;
+  version_number?: number;
   title: string;
   summary: string;
+  pinned?: boolean;
+  last_opened_at?: string | null;
   cloud: CloudProvider;
   domain?: SolutionDomain;
   archetype?: SolutionArchetype;
@@ -192,6 +220,25 @@ export interface ArchitectureResponse {
   canvas_layout?: CanvasLayout;
   azure_deployment_profile?: AzureDeploymentProfile;
   deployment_run?: DeploymentRun | null;
+}
+
+export interface WorkspaceActivityItem {
+  activity_id: string;
+  kind: string;
+  title: string;
+  detail: string;
+  occurred_at: string;
+  project_id?: string | null;
+}
+
+export interface WorkspaceSummaryResponse {
+  organization_name: string;
+  total_projects: number;
+  pinned_projects: number;
+  code_ready_projects: number;
+  recent_projects: ArchitectureResponse[];
+  recent_activity: WorkspaceActivityItem[];
+  active_deployments: DeploymentJobResponse[];
 }
 
 export interface ProjectVersionSummary {

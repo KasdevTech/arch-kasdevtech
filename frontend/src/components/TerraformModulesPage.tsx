@@ -29,16 +29,13 @@ export function TerraformModulesPage({
   architecture: ArchitectureResponse;
 }) {
   if (!architecture.iac_template) {
-    return (
-      <section className="card empty-card">
-        <p className="eyebrow">Code</p>
-        <h2>This project was generated without infrastructure code output.</h2>
-        <p>
-          Generate a new architecture with the Terraform option enabled to see
-          per-component IaC modules on this page.
-        </p>
-      </section>
-    );
+      return (
+        <section className="card empty-card">
+          <p className="eyebrow">Code</p>
+          <h2>No infrastructure code is attached to this project.</h2>
+          <p>Generate again with Terraform enabled to populate this workspace.</p>
+        </section>
+      );
   }
 
   const foundation = extractFoundation(architecture.iac_template);
@@ -46,14 +43,13 @@ export function TerraformModulesPage({
 
   return (
     <div className="page-stack">
-      <section className="card panel">
+        <section className="card panel">
           <div className="section-heading">
             <p className="eyebrow">Code</p>
             <h2>Deployable infrastructure code</h2>
           </div>
           <p className="section-copy">
-            This page shows the Terraform bundle that Ship applies for supported
-            Azure resources, with each generated component separated for review.
+            Review the generated Terraform bundle and the component-level modules that Ship will use for supported resources.
           </p>
         </section>
 

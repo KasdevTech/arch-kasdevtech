@@ -10,9 +10,13 @@ from fastapi import HTTPException
 
 from app.models import (
     ArchitectureResponse,
+    DeploymentJobResponse,
+    ProjectMetadataUpdateRequest,
     ProjectHistoryResponse,
     ProjectSaveRequest,
     ProjectVersionSummary,
+    WorkspaceActivityItem,
+    WorkspaceSummaryResponse,
 )
 
 
@@ -25,7 +29,12 @@ class ProjectStoreService:
     def list_projects(self) -> list[ArchitectureResponse]:
         payload = self._read()
         projects = [self._deserialize_project(item["current"]) for item in payload.get("projects", [])]
-        projects.sort(key=lambda item: item.updated_at, reverse=True)
+        projects.sort(
+            key=lambda item: (
+                0 if item.pinned else 1,
+                -(item.last_opened_at or item.updated_at).timestamp(),
+            ),
+        )
         return projects
 
     def get_project(self, project_id: str) -> ArchitectureResponse:
@@ -41,6 +50,7 @@ class ProjectStoreService:
                 deep=True,
             )
             architecture.created_at = architecture.created_at or now
+            architecture.last_opened_at = architecture.last_opened_at or now
 
             records = data.setdefault("projects", [])
             existing = next(
@@ -104,6 +114,26 @@ class ProjectStoreService:
             self._write(data)
             return architecture
 
+    def update_metadata(
+        self,
+        project_id: str,
+        payload: ProjectMetadataUpdateRequest,
+    ) -> ArchitectureResponse:
+        with self._lock:
+            data = self._read()
+            record = self._find_record(project_id, payload=data)
+            architecture = self._deserialize_project(record["current"])
+            if payload.title is not None:
+                architecture.title = payload.title
+            if payload.pinned is not None:
+                architecture.pinned = payload.pinned
+            if payload.last_opened_at is not None:
+                architecture.last_opened_at = payload.last_opened_at
+            architecture.updated_at = datetime.now(timezone.utc)
+            record["current"] = self._serialize_project(architecture)
+            self._write(data)
+            return architecture
+
     def history(self, project_id: str) -> ProjectHistoryResponse:
         record = self._find_record(project_id)
         versions = [
@@ -137,6 +167,52 @@ class ProjectStoreService:
             versions.append(self._build_version_entry(restored, f"Restored from version {version['version_number']}"))
             self._write(data)
             return restored
+
+    def workspace_summary(
+        self,
+        *,
+        organization_name: str = "KasdevTech",
+        active_deployments: list[DeploymentJobResponse] | None = None,
+    ) -> WorkspaceSummaryResponse:
+        projects = self.list_projects()
+        recent_projects = sorted(
+            projects,
+            key=lambda item: item.last_opened_at or item.updated_at,
+            reverse=True,
+        )[:5]
+        recent_activity: list[WorkspaceActivityItem] = []
+        for project in projects[:6]:
+            recent_activity.append(
+                WorkspaceActivityItem(
+                    activity_id=f"project-{project.request_id}-updated",
+                    kind="project_updated",
+                    title=project.title,
+                    detail=f"Version {project.version_number} updated",
+                    occurred_at=project.updated_at,
+                    project_id=project.request_id,
+                ),
+            )
+            if project.deployment_run:
+                recent_activity.append(
+                    WorkspaceActivityItem(
+                        activity_id=f"project-{project.request_id}-deploy",
+                        kind="deployment",
+                        title=project.title,
+                        detail=project.deployment_run.summary,
+                        occurred_at=project.updated_at,
+                        project_id=project.request_id,
+                    ),
+                )
+        recent_activity.sort(key=lambda item: item.occurred_at, reverse=True)
+        return WorkspaceSummaryResponse(
+            organization_name=organization_name,
+            total_projects=len(projects),
+            pinned_projects=sum(1 for project in projects if project.pinned),
+            code_ready_projects=sum(1 for project in projects if project.iac_template),
+            recent_projects=recent_projects,
+            recent_activity=recent_activity[:8],
+            active_deployments=active_deployments or [],
+        )
 
     def _build_version_entry(self, architecture: ArchitectureResponse, change_note: str | None) -> dict:
         saved_at = architecture.updated_at or datetime.now(timezone.utc)

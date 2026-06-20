@@ -839,6 +839,7 @@ export function ArchitectureBoard({
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState("");
   const [draggingStencilType, setDraggingStencilType] = useState<ServiceStencil["type"] | null>(null);
+  const [stencilQuery, setStencilQuery] = useState("");
   const lanes = activeLanes(activeArchitecture);
   const lanePositions = laneXPositions(lanes);
   const effectiveConnections = connections ?? architecture.connections;
@@ -850,6 +851,17 @@ export function ArchitectureBoard({
   const editableServices = services ?? architecture.services;
   const selectedService = editableServices.find((service) => service.id === selectedNodeId) ?? null;
   const editingNode = nodes.find((node) => node.id === editingNodeId) ?? null;
+  const paletteStencils = AZURE_STENCILS.filter((stencil) => {
+    const query = stencilQuery.trim().toLowerCase();
+    if (!query) {
+      return true;
+    }
+    return (
+      stencil.label.toLowerCase().includes(query) ||
+      stencil.cloud_service.toLowerCase().includes(query) ||
+      stencil.category.toLowerCase().includes(query)
+    );
+  });
 
   useEffect(() => {
     setNodes(buildNodes(activeArchitecture));
@@ -1246,8 +1258,7 @@ export function ArchitectureBoard({
               <p className="eyebrow">Live Architecture Canvas</p>
               <h2>{architecture.cloud.toUpperCase()} visual diagram</h2>
               <p className="section-copy">
-                Drag services to tune the layout, then export the current canvas as
-                enterprise handoff assets for engineering and architecture reviews.
+                Edit the live architecture, then export the current state for engineering handoff.
               </p>
               {architecture.domain || architecture.archetype ? (
                 <div className="pill-row">
@@ -1331,53 +1342,39 @@ export function ArchitectureBoard({
 
       {showToolbar ? (
         <div className="canvas-hint">
-          <span>Drag any service card to rearrange the architecture.</span>
+          <span>Drag to move components.</span>
           {!readOnly ? (
-            <span>Double-click a node to rename it. Drag symbols from the palette onto the canvas.</span>
+            <span>Double-click to rename. Drag from the symbol palette to add.</span>
           ) : null}
           {!readOnly && onConnectionsChange ? (
             <span>
               {connectFromNodeId
-                ? "Click a target node to create the connection."
-                : "Use Connect Nodes to add or remove flow lines manually."}
+                ? "Click a target to create a connection."
+                : "Use Connect Nodes to add or remove flow lines."}
             </span>
           ) : null}
-          <span>Layout autosaves on release for this project.</span>
+          <span>Layout autosaves.</span>
         </div>
       ) : null}
 
-      <div
-        ref={canvasShellRef}
-        className="canvas-shell"
-        onDragOver={(event) => {
-          if (!readOnly) {
-            event.preventDefault();
-          }
-        }}
-        onDrop={(event) => {
-          if (readOnly || !draggingStencilType) {
-            return;
-          }
-          event.preventDefault();
-          const stencil = AZURE_STENCILS.find((item) => item.type === draggingStencilType);
-          if (!stencil) {
-            return;
-          }
-          addServiceFromStencilAtPosition(
-            stencil,
-            pointToCanvasPosition(event.clientX, event.clientY),
-          );
-          setDraggingStencilType(null);
-        }}
-      >
+      <div className="canvas-workbench">
         {!readOnly && onServicesChange ? (
-          <div className="canvas-stencil-dock">
+          <aside className="canvas-stencil-dock">
             <div className="canvas-stencil-head">
-              <strong>Symbols</strong>
-              <span>Drag into canvas</span>
+              <div>
+                <strong>Symbols</strong>
+                <p>Drag or click to add components.</p>
+              </div>
+              <span>{paletteStencils.length} visible</span>
             </div>
+            <input
+              className="canvas-palette-search"
+              onChange={(event) => setStencilQuery(event.target.value)}
+              placeholder="Search symbols"
+              value={stencilQuery}
+            />
             <div className="canvas-stencil-list">
-              {AZURE_STENCILS.slice(0, 8).map((stencil) => (
+              {paletteStencils.slice(0, 10).map((stencil) => (
                 <button
                   key={`dock-${stencil.type}`}
                   className="canvas-stencil-item"
@@ -1396,14 +1393,39 @@ export function ArchitectureBoard({
                 </button>
               ))}
             </div>
-          </div>
+          </aside>
         ) : null}
-        <svg
-          ref={svgRef}
-          className="architecture-canvas"
-          viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
-          xmlns="http://www.w3.org/2000/svg"
+
+        <div
+          ref={canvasShellRef}
+          className="canvas-shell"
+          onDragOver={(event) => {
+            if (!readOnly) {
+              event.preventDefault();
+            }
+          }}
+          onDrop={(event) => {
+            if (readOnly || !draggingStencilType) {
+              return;
+            }
+            event.preventDefault();
+            const stencil = AZURE_STENCILS.find((item) => item.type === draggingStencilType);
+            if (!stencil) {
+              return;
+            }
+            addServiceFromStencilAtPosition(
+              stencil,
+              pointToCanvasPosition(event.clientX, event.clientY),
+            );
+            setDraggingStencilType(null);
+          }}
         >
+          <svg
+            ref={svgRef}
+            className="architecture-canvas"
+            viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
+            xmlns="http://www.w3.org/2000/svg"
+          >
           <defs>
             <linearGradient id="boardGlow" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="rgba(45, 212, 191, 0.18)" />
@@ -1600,36 +1622,37 @@ export function ArchitectureBoard({
               ) : null}
             </g>
           ))}
-        </svg>
-        {!readOnly && editingNode ? (
-          <div
-            className="canvas-inline-editor"
-            style={{
-              left: `calc(${(editingNode.x / VIEWBOX_WIDTH) * 100}% + 92px)`,
-              top: `calc(${(editingNode.y / VIEWBOX_HEIGHT) * 100}% + 18px)`,
-              width: `${((editingNode.width - 110) / VIEWBOX_WIDTH) * 100}%`,
-            }}
-          >
-            <input
-              autoFocus
-              className="canvas-inline-input"
-              onBlur={commitInlineEdit}
-              onChange={(event) => setEditingLabel(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  commitInlineEdit();
-                }
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  setEditingNodeId(null);
-                  setEditingLabel("");
-                }
+          </svg>
+          {!readOnly && editingNode ? (
+            <div
+              className="canvas-inline-editor"
+              style={{
+                left: `calc(${(editingNode.x / VIEWBOX_WIDTH) * 100}% + 92px)`,
+                top: `calc(${(editingNode.y / VIEWBOX_HEIGHT) * 100}% + 18px)`,
+                width: `${((editingNode.width - 110) / VIEWBOX_WIDTH) * 100}%`,
               }}
-              value={editingLabel}
-            />
-          </div>
-        ) : null}
+            >
+              <input
+                autoFocus
+                className="canvas-inline-input"
+                onBlur={commitInlineEdit}
+                onChange={(event) => setEditingLabel(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    commitInlineEdit();
+                  }
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    setEditingNodeId(null);
+                    setEditingLabel("");
+                  }
+                }}
+                value={editingLabel}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {showLegend ? (
@@ -1672,8 +1695,14 @@ export function ArchitectureBoard({
                   <p className="eyebrow">Symbols</p>
                   <h2>Replace selected component</h2>
                 </div>
+                <input
+                  className="canvas-palette-search"
+                  onChange={(event) => setStencilQuery(event.target.value)}
+                  placeholder="Search symbols"
+                  value={stencilQuery}
+                />
                 <div className="symbol-palette">
-                  {AZURE_STENCILS.map((stencil) => (
+                  {paletteStencils.map((stencil) => (
                     <button
                       key={`replace-${stencil.type}`}
                       className={
@@ -1776,8 +1805,14 @@ export function ArchitectureBoard({
                   <p className="eyebrow">Symbols</p>
                   <h2>Add component from palette</h2>
                 </div>
+                <input
+                  className="canvas-palette-search"
+                  onChange={(event) => setStencilQuery(event.target.value)}
+                  placeholder="Search symbols"
+                  value={stencilQuery}
+                />
                 <div className="symbol-palette">
-                  {AZURE_STENCILS.map((stencil) => (
+                  {paletteStencils.map((stencil) => (
                     <button
                       key={`add-${stencil.type}`}
                       className="symbol-chip"

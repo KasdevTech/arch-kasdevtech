@@ -1,10 +1,8 @@
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { HardLink } from "../components/HardLink";
 import type { ArchitectureResponse } from "../types";
 import { useArchitectureStore } from "../context/ArchitectureStore";
-import { ProjectOverviewPage } from "./ProjectOverviewPage";
-import { ProjectShipPage } from "./ProjectShipPage";
-import { ProjectTerraformPage } from "./ProjectTerraformPage";
 
 export interface ProjectRouteContext {
   architecture: ArchitectureResponse;
@@ -15,7 +13,7 @@ export function ArchitectureDetailPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { projectId } = useParams();
-  const { hydrated, projects, removeProject } = useArchitectureStore();
+  const { hydrated, projects, removeProject, updateProjectMetadata } = useArchitectureStore();
 
   const architecture = projects.find((item) => item.request_id === projectId);
 
@@ -27,6 +25,15 @@ export function ArchitectureDetailPage() {
     await removeProject(architecture.request_id);
     navigate("/app/projects");
   }
+
+  useEffect(() => {
+    if (!architecture) {
+      return;
+    }
+    void updateProjectMetadata(architecture.request_id, {
+      last_opened_at: new Date().toISOString(),
+    });
+  }, [architecture?.request_id]);
 
   if (!hydrated) {
     return (
@@ -60,17 +67,42 @@ export function ArchitectureDetailPage() {
       ? "ship"
       : "arch";
 
+  const subpageMeta =
+    currentSubpage === "code"
+      ? {
+          title: "Infrastructure code",
+          copy: "Review generated Terraform, module boundaries, and deployable coverage.",
+        }
+      : currentSubpage === "ship"
+        ? {
+            title: "Deployment workspace",
+            copy: "Prepare the plan, validate the resource map, and deploy safely.",
+          }
+        : {
+            title: "Architecture workspace",
+            copy: "Edit the canvas, refine the topology, and regenerate the project model.",
+          };
+
   return (
     <div className="page-stack">
       <section className="page-header">
         <div>
           <p className="eyebrow">Project</p>
-          <h2>{architecture.title}</h2>
-          <p className="section-copy">
-            Architect, review code, and prepare deployment from one project workspace.
-          </p>
+          <h2>{subpageMeta.title}</h2>
+          <p className="section-copy">{subpageMeta.copy}</p>
         </div>
         <div className="topbar-actions">
+          <button
+            className={architecture.pinned ? "secondary-button active-soft" : "secondary-button"}
+            onClick={() =>
+              void updateProjectMetadata(architecture.request_id, {
+                pinned: !architecture.pinned,
+              })
+            }
+            type="button"
+          >
+            {architecture.pinned ? "Pinned" : "Pin Project"}
+          </button>
           <HardLink className="button-link secondary" to="/app/projects">
             Back to Library
           </HardLink>
@@ -112,16 +144,7 @@ export function ArchitectureDetailPage() {
           Ship
         </HardLink>
       </nav>
-      {currentSubpage === "code" ? (
-        <ProjectTerraformPage architecture={architecture} />
-      ) : currentSubpage === "ship" ? (
-        <ProjectShipPage architecture={architecture} />
-      ) : (
-        <ProjectOverviewPage
-          architecture={architecture}
-          onDelete={handleDelete}
-        />
-      )}
+      <Outlet context={{ architecture, onDelete: handleDelete }} />
     </div>
   );
 }

@@ -6,9 +6,12 @@ from app.models import (
     ArchitectureResponse,
     CanvasLayoutUpdateRequest,
     DeploymentProfileUpdateRequest,
+    ProjectMetadataUpdateRequest,
     ProjectHistoryResponse,
     ProjectSaveRequest,
+    WorkspaceSummaryResponse,
 )
+from app.services.deployment_jobs import deployment_job_service
 from app.services.project_store import project_store_service
 
 
@@ -18,6 +21,13 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 @router.get("", response_model=list[ArchitectureResponse])
 def list_projects() -> list[ArchitectureResponse]:
     return project_store_service.list_projects()
+
+
+@router.get("/workspace/summary", response_model=WorkspaceSummaryResponse)
+def get_workspace_summary() -> WorkspaceSummaryResponse:
+    return project_store_service.workspace_summary(
+        active_deployments=deployment_job_service.list_active_jobs(),
+    )
 
 
 @router.get("/{project_id}", response_model=ArchitectureResponse)
@@ -50,6 +60,14 @@ def update_deployment_profile(
     payload: DeploymentProfileUpdateRequest,
 ) -> ArchitectureResponse:
     return project_store_service.update_deployment_profile(project_id, payload.profile, payload.run)
+
+
+@router.patch("/{project_id}/metadata", response_model=ArchitectureResponse)
+def update_project_metadata(
+    project_id: str,
+    payload: ProjectMetadataUpdateRequest,
+) -> ArchitectureResponse:
+    return project_store_service.update_metadata(project_id, payload)
 
 
 @router.get("/{project_id}/history", response_model=ProjectHistoryResponse)

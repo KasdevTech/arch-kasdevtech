@@ -120,21 +120,21 @@ export function StudioPage() {
           <div className="compact-section-head">
             <div>
               <p className="eyebrow">Project</p>
-              <h2>{editingProject ? `Editing ${editingProject.title}` : "Set up project profile"}</h2>
+              <h2>{editingProject ? `Editing ${editingProject.title}` : "Project profile"}</h2>
             </div>
           </div>
           <div className="studio-helper-stack compact">
             <article className="studio-helper-card">
               <strong>Name</strong>
-              <p>Use a clear project name.</p>
+              <p>Use a short business-facing name.</p>
             </article>
             <article className="studio-helper-card">
               <strong>Cloud</strong>
-              <p>Choose the target platform.</p>
+              <p>Pick the target provider.</p>
             </article>
             <article className="studio-helper-card">
               <strong>Brief</strong>
-              <p>Describe core components, scale, and constraints.</p>
+              <p>Describe scale, controls, and key services.</p>
             </article>
           </div>
           {editingProject ? (

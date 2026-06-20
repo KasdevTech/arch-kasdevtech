@@ -8,6 +8,10 @@ A full-stack MVP that turns a plain-English product idea into a cloud architectu
 - End-to-end technical walkthrough: [docs/TECHNICAL_WALKTHROUGH.md](/Users/kasisureshdevarajugattu/Coding/AI-Arch/docs/TECHNICAL_WALKTHROUGH.md)
 - Code explanation: [docs/CODE_EXPLANATION.md](/Users/kasisureshdevarajugattu/Coding/AI-Arch/docs/CODE_EXPLANATION.md)
 - Accuracy and enterprise roadmap: [docs/ACCURACY_AND_ENTERPRISE_ROADMAP.md](/Users/kasisureshdevarajugattu/Coding/AI-Arch/docs/ACCURACY_AND_ENTERPRISE_ROADMAP.md)
+- Project review: [docs/PROJECT_REVIEW.md](/Users/kasisureshdevarajugattu/Coding/AI-Arch/docs/PROJECT_REVIEW.md)
+- End-to-end code guide: [docs/END_TO_END_CODE_GUIDE.md](/Users/kasisureshdevarajugattu/Coding/AI-Arch/docs/END_TO_END_CODE_GUIDE.md)
+- Enterprise deployment architecture review: [docs/ENTERPRISE_DEPLOYMENT_ARCHITECTURE_REVIEW.md](/Users/kasisureshdevarajugattu/Coding/AI-Arch/docs/ENTERPRISE_DEPLOYMENT_ARCHITECTURE_REVIEW.md)
+- Interview questions and answer guide: [docs/INTERVIEW_QUESTIONS.md](/Users/kasisureshdevarajugattu/Coding/AI-Arch/docs/INTERVIEW_QUESTIONS.md)
 
 ## What It Includes
 
@@ -21,6 +25,9 @@ A full-stack MVP that turns a plain-English product idea into a cloud architectu
 - Security controls, resilience notes, operational guidance, and risk flags
 - Deployable Terraform for the supported Azure resource set
 - React frontend with dedicated `Arch`, `Code`, and `Ship` workspaces
+- Router-native SaaS navigation with a persistent left workspace rail
+- Reduced-density architecture review with collapsible deep-analysis sections
+- Searchable symbol palette for the live architecture canvas
 - Backend-backed project persistence with version history and restore
 - FastAPI backend for generation, chat, project CRUD, history, restore, and Azure deploy/prepare flows
 
@@ -87,6 +94,16 @@ Project routes:
 - `/app/projects/:projectId/arch` architecture workspace
 - `/app/projects/:projectId/code` infrastructure code page
 - `/app/projects/:projectId/ship` Azure deploy workspace
+
+## Current Workspace Model
+
+The product now follows a tighter SaaS workspace model:
+
+- `Create Project`: capture workload intent and generate the project
+- `Projects`: browse saved workspaces
+- `Arch`: edit the live diagram, add/remove components, and regenerate outputs
+- `Code`: review Terraform foundation and component modules
+- `Ship`: prepare an Azure deployment plan and run deploy for supported resources
 
 ## Environment Variables
 

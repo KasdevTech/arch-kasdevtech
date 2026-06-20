@@ -8,12 +8,14 @@ from app.models import (
     ArchitectureRequest,
     ArchitectureResponse,
     ArchitectureRebuildRequest,
+    DeploymentJobResponse,
     AzureDeploymentPrepareResponse,
     AzureDeploymentRequest,
     AzureDeploymentResponse,
 )
 from app.services.architecture_service import architecture_service
 from app.services.chat_service import chat_architect_service
+from app.services.deployment_jobs import deployment_job_service
 from app.services.deployment_service import azure_deployment_service
 
 
@@ -43,3 +45,13 @@ def deploy_to_azure(payload: AzureDeploymentRequest) -> AzureDeploymentResponse:
 @router.post("/deploy/azure/prepare", response_model=AzureDeploymentPrepareResponse)
 def prepare_azure_deployment(payload: AzureDeploymentRequest) -> AzureDeploymentPrepareResponse:
     return azure_deployment_service.prepare(payload)
+
+
+@router.post("/deploy/azure/jobs", response_model=DeploymentJobResponse)
+def queue_azure_deployment(payload: AzureDeploymentRequest) -> DeploymentJobResponse:
+    return deployment_job_service.create_job(payload)
+
+
+@router.get("/deploy/jobs/{job_id}", response_model=DeploymentJobResponse)
+def get_deployment_job(job_id: str) -> DeploymentJobResponse:
+    return deployment_job_service.get_job(job_id)
